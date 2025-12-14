@@ -1,0 +1,110 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "liq-features"
+version = "0.1.0"
+description = "Feature engineering and technical indicators for the LIQ stack"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [
+    { name = "firestrand", email = "firestrand@example.com" },
+]
+keywords = ["quantitative-finance", "features", "indicators", "technical-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = [
+    "polars>=1.20",
+    "numpy>=2.0",
+    "typer>=0.15",
+    "rich>=13.9",
+    "liq-data>=0.1.0",
+    "liq-store>=0.1.0",
+]
+
+[project.scripts]
+liq-features = "liq.features.cli:app"
+
+[project.optional-dependencies]
+talib = [
+    "ta-lib>=0.4.0",
+]
+xxhash = [
+    "xxhash>=3.0.0",
+]
+all = [
+    "ta-lib>=0.4.0",
+    "xxhash>=3.0.0",
+]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "hypothesis>=6.120",
+    "ruff>=0.14",
+    "mypy>=1.13",
+]
+
+[project.urls]
+Repository = "https://github.com/example/liq-features"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/liq"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--strict-markers -v"
+
+[tool.coverage.run]
+source = ["src/liq/features"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/cli.py" = ["B904"]  # typer.Exit() is intentionally not chained
+
+[tool.ruff.lint.isort]
+known-first-party = ["liq"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
