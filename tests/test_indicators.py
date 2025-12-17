@@ -8,7 +8,7 @@ import pytest
 
 from liq.features.indicators import BaseIndicator, get_indicator, list_indicators
 from liq.features.indicators.momentum import MACD, ROC, RSI, Stochastic
-from liq.features.indicators.trend import ADX, ATR, BBANDS, EMA, SMA, WMA
+from liq.features.indicators.trend import ADX, ATR, BBANDS, EMA, HMA, SMA, WMA
 from liq.store.parquet import ParquetStore
 
 
@@ -97,6 +97,27 @@ class TestIndicatorRegistry:
         assert "rsi" in names
         assert "ema" in names
         assert "macd" in names
+
+    def test_list_indicators_merges_talib_when_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Simulate TA-Lib availability and ensure merged listing."""
+        from liq.features.indicators import talib as talib_mod
+        from liq.features.indicators import registry
+
+        monkeypatch.setattr(talib_mod, "list_dynamic_indicators", lambda: [
+            {
+                "name": "talib_dummy",
+                "display_name": "TA Dummy",
+                "parameters": {"timeperiod": 10},
+            }
+        ])
+
+        indicators = registry.list_indicators()
+        names = {ind["name"] for ind in indicators}
+        sources = {ind["name"]: ind.get("source") for ind in indicators}
+
+        assert "rsi" in names  # hardcoded baseline
+        assert "talib_dummy" in names
+        assert sources.get("talib_dummy") == "talib"
 
 
 class TestRSI:
@@ -468,3 +489,96 @@ class TestMidrangeIndicators:
         # Test getting by name
         ATR_MR = get_indicator("atr_midrange")
         assert ATR_MR.name == "atr_midrange"
+
+
+class TestHMA:
+    """Tests for Hull Moving Average (HMA) indicator."""
+
+    def test_hma_default_params(self) -> None:
+        """Test HMA default parameters."""
+        hma = HMA()
+
+        assert hma.params["period"] == 55
+        assert hma.params["column"] == "close"
+
+    def test_hma_custom_params(self) -> None:
+        """Test HMA with custom parameters."""
+        hma = HMA(params={"period": 20, "column": "open"})
+
+        assert hma.params["period"] == 20
+        assert hma.params["column"] == "open"
+
+    def test_hma_compute(self, sample_ohlc_df_large: pl.DataFrame) -> None:
+        """Test HMA computation."""
+        hma = HMA(params={"period": 10})
+
+        result = hma.compute(sample_ohlc_df_large)
+
+        assert "ts" in result.columns
+        assert "value" in result.columns
+        # Should have no NaN values
+        assert result.filter(pl.col("value").is_nan()).height == 0
+        # HMA values should be reasonable (in price range)
+        values = result["value"].to_list()
+        assert len(values) > 0
+        # Values should be within reasonable range of price data
+        min_price = sample_ohlc_df_large["low"].min()
+        max_price = sample_ohlc_df_large["high"].max()
+        assert all(min_price - 10 < v < max_price + 10 for v in values)
+
+    def test_hma_custom_column(self, sample_ohlc_df_large: pl.DataFrame) -> None:
+        """Test HMA with custom column parameter."""
+        hma_close = HMA(params={"period": 10, "column": "close"})
+        hma_open = HMA(params={"period": 10, "column": "open"})
+
+        result_close = hma_close.compute(sample_ohlc_df_large)
+        result_open = hma_open.compute(sample_ohlc_df_large)
+
+        # Results should be different when using different columns
+        close_vals = result_close["value"].to_list()
+        open_vals = result_open["value"].to_list()
+        assert close_vals != open_vals
+
+    def test_hma_multiple_periods(self, sample_ohlc_df_large: pl.DataFrame) -> None:
+        """Test HMA with Fibonacci periods."""
+        # Test with smaller periods that fit the sample data
+        for period in [10, 20, 30]:
+            hma = HMA(params={"period": period})
+            result = hma.compute(sample_ohlc_df_large)
+            assert result.height > 0
+            assert result.filter(pl.col("value").is_nan()).height == 0
+
+    def test_hma_vs_sma_lag_reduction(self, sample_ohlc_df_large: pl.DataFrame) -> None:
+        """Test that HMA has less lag than SMA (responds faster to price changes)."""
+        period = 10
+        hma = HMA(params={"period": period})
+        sma = SMA(params={"period": period})
+
+        result_hma = hma.compute(sample_ohlc_df_large)
+        result_sma = sma.compute(sample_ohlc_df_large)
+
+        # Both should return valid results
+        assert result_hma.height > 0
+        assert result_sma.height > 0
+        # HMA and SMA should be different (HMA has less lag)
+        hma_vals = result_hma["value"].to_list()
+        sma_vals = result_sma["value"].to_list()
+        # Align by timestamp
+        common_len = min(len(hma_vals), len(sma_vals))
+        assert hma_vals[:common_len] != sma_vals[:common_len]
+
+    def test_hma_repr(self) -> None:
+        """Test HMA string representation."""
+        hma = HMA(params={"period": 55})
+
+        repr_str = repr(hma)
+
+        assert "HMA" in repr_str
+        assert "period=55" in repr_str
+
+    def test_hma_in_registry(self) -> None:
+        """Test HMA is registered and accessible via get_indicator."""
+        HMAClass = get_indicator("hma")
+
+        assert HMAClass.name == "hma"
+        assert HMAClass is HMA

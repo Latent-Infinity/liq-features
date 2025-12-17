@@ -13,6 +13,38 @@ Optional TA-Lib support (150+ additional indicators):
 pip install ta-lib
 ```
 
+## Input DataFrame Schema
+
+All functions expect Polars DataFrames with OHLCV data:
+
+| Column | Type | Required |
+|--------|------|----------|
+| `ts` or `timestamp` | `datetime` (timezone-aware) | Yes |
+| `open` | `float` | Yes |
+| `high` | `float` | Yes |
+| `low` | `float` | Yes |
+| `close` | `float` | Yes |
+| `volume` | `float` | No (some indicators require it) |
+
+Example:
+```python
+import polars as pl
+from datetime import datetime, timezone
+
+ohlcv_data = pl.DataFrame({
+    "ts": [
+        datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc),
+        datetime(2024, 1, 15, 10, 1, tzinfo=timezone.utc),
+        datetime(2024, 1, 15, 10, 2, tzinfo=timezone.utc),
+    ],
+    "open": [100.0, 102.0, 101.0],
+    "high": [103.0, 104.0, 103.0],
+    "low": [99.0, 101.0, 100.0],
+    "close": [102.0, 101.0, 102.5],
+    "volume": [1000.0, 1500.0, 1200.0],
+})
+```
+
 ## Quick Start
 
 ```python
@@ -48,6 +80,7 @@ features = compute_indicators(
 )
 
 # Aggregate timeframes (excludes incomplete bars by default)
+# minute_bars: your 1-minute OHLCV DataFrame
 hourly = aggregate_to_timeframe(minute_bars, "1m", "1h")
 ```
 
@@ -57,7 +90,9 @@ hourly = aggregate_to_timeframe(minute_bars, "1m", "1h")
 
 liq-features provides 160+ technical indicators:
 
-**Hardcoded (optimized):** RSI, MACD, Stochastic, EMA, SMA, BBANDS, ADX, ATR, ROC, WMA, plus midrange variants
+**Hardcoded (optimized):** RSI, MACD, Stochastic, EMA, SMA, BBANDS, ADX, ATR, ROC, WMA, HMA, plus midrange variants
+
+**Volume indicators:** AbnormalTurnover (z-score), NormalizedVolume (ratio to MA)
 
 **Dynamic (via TA-Lib):** All 150+ TA-Lib indicators available through `get_indicator()`
 
@@ -72,7 +107,7 @@ for ind in indicators[:5]:
 # Get any indicator by name
 CCI = get_indicator("cci")  # TA-Lib indicator
 cci = CCI(params={"timeperiod": 20})
-result = cci.compute(df)
+result = cci.compute(df)  # symbol/timeframe optional (used for caching)
 ```
 
 ### Global Parameter Configuration
@@ -163,6 +198,19 @@ python -m liq.features.cli fit-pipeline series.parquet --model-type nn --d 0.3 -
 python -m liq.features.cli transform series.parquet pipeline.json --output transformed.json
 ```
 
+### Pipeline Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--model-type` | Target model type: `nn`, `transformer`, `diffusion`, `trees` | Required |
+| `--d` | Fractional differencing degree (0-1). Lower = more memory, higher = more stationary | `0.4` |
+| `--output` | Output path for pipeline JSON | Required |
+
+Model types determine scaling:
+- `nn`, `transformer`: Standardization (zero mean, unit variance)
+- `diffusion`: Min-max scaling to [0, 1]
+- `trees`: No scaling (tree-based models handle raw values)
+
 ## FeatureStore (Dependency-aware)
 
 Define feature sets with dependencies that are resolved topologically:
@@ -222,6 +270,74 @@ df = compute_derived_fields(ohlcv_data)
 | `true_range_midrange` | max(midrange - prev_midrange, prev_midrange - midrange) |
 | `true_range_hl` | max(high - prev_low, prev_high - low) |
 
+## Rolling Returns & Volatility
+
+Compute rolling aggregations over Fibonacci windows (55, 210, 340, 890, 3750):
+
+```python
+from liq.features import (
+    compute_rolling_returns,
+    compute_multi_window_volatility,
+    DEFAULT_FIBONACCI_WINDOWS,
+)
+
+# Rolling sum/mean of log returns across multiple windows
+df = compute_rolling_returns(ohlcv_data, windows=[55, 210, 340])
+# Adds: log_return_sum_55, log_return_mean_55, log_return_sum_210, ...
+
+# Multi-window volatility (annualized by default)
+df = compute_multi_window_volatility(ohlcv_data, windows=[55, 210])
+# Adds: volatility_55, volatility_210
+```
+
+## Triple-Barrier Labels
+
+Generate ML training labels using the triple-barrier method:
+
+```python
+from liq.features.labels import TripleBarrierConfig, triple_barrier_labels_adaptive
+
+# Fixed thresholds (2% profit, 1% loss)
+cfg = TripleBarrierConfig(
+    take_profit=0.02,
+    stop_loss=0.01,
+    max_holding=5,
+)
+
+# Adaptive thresholds (2σ profit/loss based on rolling volatility)
+cfg = TripleBarrierConfig(
+    profit_std_multiple=2.0,
+    loss_std_multiple=2.0,
+    volatility_window=20,
+    max_holding=5,
+)
+
+result = triple_barrier_labels_adaptive(df, cfg)
+# Adds 'label' column: 1 (profit), -1 (loss), 0 (timeout)
+```
+
+## Return Types
+
+All functions return Polars DataFrames:
+
+| Function | Returns |
+|----------|---------|
+| `compute_derived_fields()` | Input DataFrame + derived columns |
+| `compute_rolling_returns()` | Input DataFrame + rolling sum/mean columns per window |
+| `compute_multi_window_volatility()` | Input DataFrame + volatility columns per window |
+| `compute_indicators()` | DataFrame with `ts` + all indicator columns merged |
+| `aggregate_to_timeframe()` | Aggregated OHLCV DataFrame |
+| `Indicator.compute()` | DataFrame with `ts`, `value` (or named outputs for multi-output indicators) |
+| `triple_barrier_labels_adaptive()` | Input DataFrame + `label` column (-1, 0, 1) |
+| `FeatureStore.compute_feature_set()` | `dict[str, pl.DataFrame]` mapping feature names to DataFrames |
+
+Multi-output indicators return named columns instead of `value`:
+```python
+MACD = get_indicator("macd")
+macd = MACD()
+result = macd.compute(df)  # Returns: ts, macd, signal, histogram
+```
+
 ## API Reference
 
 ### Top-level exports
@@ -267,4 +383,90 @@ from liq.features.indicators import (
     configure_defaults,
     reset_defaults,
 )
+```
+
+## Error Handling
+
+The library raises standard Python exceptions:
+
+**ValueError:**
+- Missing required OHLC columns in input DataFrame
+- Unknown indicator name passed to `get_indicator()`
+- Invalid or incompatible timeframes for aggregation
+- Circular or missing feature dependencies in FeatureSet
+- Insufficient data for computations
+
+**RuntimeError:**
+- Pipeline not fitted before calling `transform()`
+- Attempting to serialize an unfitted pipeline
+
+Example:
+```python
+import polars as pl
+from liq.features import compute_derived_fields
+from liq.features.indicators import get_indicator
+
+# Missing columns raises ValueError
+try:
+    df = pl.DataFrame({"open": [1.0], "close": [1.0]})  # Missing high, low
+    compute_derived_fields(df)
+except ValueError as e:
+    print(f"Missing columns: {e}")
+
+# Unknown indicator raises ValueError
+try:
+    get_indicator("not_an_indicator")
+except ValueError as e:
+    print(f"Unknown indicator: {e}")
+```
+
+## Performance Considerations
+
+**Memory:**
+- All operations are eager Polars transformations (no lazy evaluation)
+- Data is assumed to fit in memory; no automatic chunking
+- Typical for intraday/daily bar data
+
+**Caching:**
+- Results are cached to storage with keys like `symbol/indicators/name/params:timeframe`
+- Cache invalidation uses data hashing via `get_data_hash()`
+- Use `force_recalculate=False` (default) to leverage cache
+
+**Optimization tips:**
+- Pre-compute indicators at the lowest timeframe, then aggregate
+- Batch compute with `compute_indicators()` to share timestamp joins
+- Use quantization (`quantize_to_int()`) for efficient storage
+
+## Thread Safety
+
+**Safe for concurrent use:**
+- Indicator `compute()` methods (pure functions, no shared state)
+- `compute_derived_fields()` (pure Polars transformations)
+- Storage reads (ParquetStore supports concurrent reads)
+
+**Not thread-safe:**
+- `configure_defaults()` / `reset_defaults()` (modifies global state)
+- Concurrent writes to the same storage key (use application-level coordination)
+
+**Parallel processing:**
+- `mutual_info_scores()` uses `ProcessPoolExecutor` for parallel computation
+
+## Dependencies
+
+**Required:**
+- `polars>=1.20` - Primary DataFrame library (no pandas fallback)
+- `numpy>=2.0` - Numerical operations
+- `liq-store>=0.1.0` - Storage backend (LIQ ecosystem)
+- `scikit-learn>=1.4` - Feature selection
+
+**Optional:**
+- `ta-lib>=0.4.0` - 150+ additional indicators
+- `xxhash>=3.0.0` - Fast hashing for cache keys
+- `mrmr-selection>=0.2.8` - mRMR feature selection
+
+**Install variants:**
+```bash
+pip install liq-features              # Core only
+pip install liq-features[talib]       # + TA-Lib indicators
+pip install liq-features[all]         # All optional dependencies
 ```

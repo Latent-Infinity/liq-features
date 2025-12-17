@@ -39,8 +39,11 @@ Example:
 from liq.features.aggregation import Aggregator, aggregate_to_timeframe
 from liq.features.batch import cache_stats, compute_indicators
 from liq.features.derived import (
+    DEFAULT_FIBONACCI_WINDOWS,
     compute_derived_fields,
+    compute_multi_window_volatility,
     compute_returns,
+    compute_rolling_returns,
     compute_volatility,
 )
 from liq.features.feature_set import FeatureDefinition, FeatureSet
@@ -54,11 +57,17 @@ from liq.features.quantization import (
 )
 from liq.features.store import FeatureStore
 
+# Selection utilities (sklearn/scipy wrappers)
+from liq.features.selection import mrmr_select, mutual_info_scores, spearman_matrix
+
 __all__ = [
     # Derived features
     "compute_derived_fields",
     "compute_returns",
     "compute_volatility",
+    "compute_rolling_returns",
+    "compute_multi_window_volatility",
+    "DEFAULT_FIBONACCI_WINDOWS",
     # Aggregation
     "Aggregator",
     "aggregate_to_timeframe",
@@ -81,4 +90,8 @@ __all__ = [
     "get_indicator_scale",
     "quantize_to_int",
     "dequantize_from_int",
+    # Selection
+    "mutual_info_scores",
+    "mrmr_select",
+    "spearman_matrix",
 ]

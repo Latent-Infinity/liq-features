@@ -20,8 +20,16 @@ Example:
 from liq.features.indicators import (
     momentum,  # noqa: F401
     trend,  # noqa: F401
+    volume,  # noqa: F401
 )
 from liq.features.indicators.base import BaseIndicator
+from liq.features.indicators.param_grids import (
+    DEFAULT_PARAM_GRIDS,
+    IndicatorSpec,
+    count_combinations,
+    enumerate_with_params,
+    get_param_grid,
+)
 from liq.features.indicators.registry import (
     configure_defaults,
     get_indicator,
@@ -37,4 +45,10 @@ __all__ = [
     "configure_defaults",
     "reset_defaults",
     "zigzag_pivots",
+    # Parameter grids
+    "DEFAULT_PARAM_GRIDS",
+    "IndicatorSpec",
+    "enumerate_with_params",
+    "get_param_grid",
+    "count_combinations",
 ]

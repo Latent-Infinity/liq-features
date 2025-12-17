@@ -292,27 +292,26 @@ class ADX(BaseIndicator):
             ]
         )
 
-        # Calculate DX
+        # Calculate DX - handle case where both DIs are 0 to avoid NaN
         result = result.with_columns(
             [
-                (
+                pl.when(pl.col("plus_di") + pl.col("minus_di") == 0)
+                .then(0.0)
+                .otherwise(
                     (pl.col("plus_di") - pl.col("minus_di")).abs()
                     / (pl.col("plus_di") + pl.col("minus_di"))
                     * 100
-                ).alias("dx")
+                )
+                .alias("dx")
             ]
         )
 
-        # ADX = EMA of DX
+        # ADX = EMA of DX (fill any remaining NaN with 0 to prevent propagation)
         result = result.with_columns(
-            [pl.col("dx").ewm_mean(alpha=alpha, adjust=False).alias("adx")]
+            [pl.col("dx").fill_nan(0.0).ewm_mean(alpha=alpha, adjust=False).alias("adx")]
         )
 
-        return (
-            result.select(["ts", "adx", "plus_di", "minus_di"])
-            .filter(pl.col("adx").is_not_nan())
-            .tail(-period * 2)
-        )
+        return result.select(["ts", "adx", "plus_di", "minus_di"]).tail(-period * 2)
 
 
 @register_indicator
@@ -360,6 +359,73 @@ class WMA(BaseIndicator):
             wma_values[i] = np.sum(window * weights) / weight_sum
 
         result = pl.DataFrame({"ts": ts_values, "value": wma_values})
+
+        return result.filter(pl.col("value").is_not_nan())
+
+
+@register_indicator
+class HMA(BaseIndicator):
+    """Hull Moving Average (HMA) indicator.
+
+    A moving average that reduces lag by using weighted sliding windows.
+    Considered one of the most responsive moving averages while maintaining
+    smoothness.
+
+    Formula: HMA = WMA(2*WMA(n/2) - WMA(n), sqrt(n))
+
+    Parameters:
+        period: Lookback period (default: 55, Fibonacci-based)
+        column: Column to compute HMA on (default: "close")
+    """
+
+    name: ClassVar[str] = "hma"
+    default_params: ClassVar[dict[str, Any]] = {"period": 55, "column": "close"}
+
+    def _compute(self, df: pl.DataFrame) -> pl.DataFrame:
+        """Compute HMA values.
+
+        Args:
+            df: DataFrame with price column and 'ts'
+
+        Returns:
+            DataFrame with columns: ts, value
+        """
+        import math
+
+        import numpy as np
+
+        period = self._params["period"]
+        column = self._params["column"]
+
+        values = df[column].to_numpy()
+        ts_values = df["ts"]
+        n = len(values)
+
+        # Helper function to compute WMA
+        def compute_wma(data: np.ndarray, wma_period: int) -> np.ndarray:
+            weights = np.arange(1, wma_period + 1, dtype=float)
+            weight_sum = weights.sum()
+            result = np.full(len(data), np.nan)
+            for i in range(wma_period - 1, len(data)):
+                window = data[i - wma_period + 1 : i + 1]
+                result[i] = np.sum(window * weights) / weight_sum
+            return result
+
+        # Step 1: WMA(n/2)
+        half_period = max(1, period // 2)
+        wma_half = compute_wma(values, half_period)
+
+        # Step 2: WMA(n)
+        wma_full = compute_wma(values, period)
+
+        # Step 3: 2*WMA(n/2) - WMA(n)
+        diff = 2 * wma_half - wma_full
+
+        # Step 4: WMA of diff with period = sqrt(n)
+        sqrt_period = max(1, int(math.sqrt(period)))
+        hma_values = compute_wma(diff, sqrt_period)
+
+        result = pl.DataFrame({"ts": ts_values, "value": hma_values})
 
         return result.filter(pl.col("value").is_not_nan())
 
@@ -532,24 +598,23 @@ class ADX_Midrange(BaseIndicator):
             ]
         )
 
-        # Calculate DX
+        # Calculate DX - handle case where both DIs are 0 to avoid NaN
         result = result.with_columns(
             [
-                (
+                pl.when(pl.col("plus_di") + pl.col("minus_di") == 0)
+                .then(0.0)
+                .otherwise(
                     (pl.col("plus_di") - pl.col("minus_di")).abs()
                     / (pl.col("plus_di") + pl.col("minus_di"))
                     * 100
-                ).alias("dx")
+                )
+                .alias("dx")
             ]
         )
 
-        # ADX = EMA of DX
+        # ADX = EMA of DX (fill any remaining NaN with 0 to prevent propagation)
         result = result.with_columns(
-            [pl.col("dx").ewm_mean(alpha=alpha, adjust=False).alias("adx")]
+            [pl.col("dx").fill_nan(0.0).ewm_mean(alpha=alpha, adjust=False).alias("adx")]
         )
 
-        return (
-            result.select(["ts", "adx", "plus_di", "minus_di"])
-            .filter(pl.col("adx").is_not_nan())
-            .tail(-period * 2)
-        )
+        return result.select(["ts", "adx", "plus_di", "minus_di"]).tail(-period * 2)

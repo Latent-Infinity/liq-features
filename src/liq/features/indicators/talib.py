@@ -7,7 +7,52 @@ and generates indicator classes on-the-fly.
 Design Principles:
     - DRY: Single implementation for all TA-Lib indicators
     - Open/Closed: New TA-Lib functions automatically available
+    - SRP: Input mapping, output handling, and class generation are separate concerns
     - Fail-Fast: Clear errors for unsupported indicators
+
+Input Mapping Rules:
+    TA-Lib indicators require different input types. This module maps DataFrame columns
+    to TA-Lib input arrays according to these rules:
+
+    1. 'prices' (list of columns):
+       - Maps to the specific columns listed (e.g., ['high', 'low', 'close', 'volume'])
+       - Examples: MFI needs ['high', 'low', 'close', 'volume']
+                   BOP needs ['open', 'high', 'low', 'close']
+                   AROON needs ['high', 'low']
+
+    2. 'price' (single column):
+       - Maps to configurable price column (default: 'close')
+       - Can be overridden via '_price_column' param to use 'midrange', 'typical', etc.
+
+    3. 'real', 'real0' (single value):
+       - Maps to configurable price column (default: 'close')
+       - Used by most single-input indicators (RSI, EMA, etc.)
+
+    4. 'real1' (second value):
+       - Maps to 'high' column if available, otherwise 'close'
+       - Used by some two-input indicators
+
+    5. 'price0', 'price1' (two price inputs):
+       - The input_spec value specifies which column to use (e.g., 'high', 'low')
+       - Example: {'price0': 'high', 'price1': 'low'} for BETA, CORREL
+       - Falls back to configurable price column if spec column not found
+
+    6. 'periods' (variable periods):
+       - Skipped - handled by indicator parameters
+       - Used by MAVP (Moving Average with Variable Period)
+
+    7. Other keys:
+       - Direct column lookup in DataFrame
+       - Fails if column not found
+
+Output Handling:
+    TA-Lib indicators can return single or multiple outputs:
+
+    - Single output: Returns DataFrame with ['ts', 'value']
+    - Multi-output: Returns DataFrame with ['ts', 'output1', 'output2', ...]
+      Examples: MACD returns ['macd', 'signal', 'histogram']
+                AROON returns ['aroondown', 'aroonup']
+                STOCH returns ['slowk', 'slowd']
 
 Note:
     This module requires TA-Lib to be installed (optional dependency).
@@ -20,7 +65,16 @@ Example:
     >>> result = cci.compute(df)
 """
 
-from typing import Any
+from __future__ import annotations
+
+from collections import OrderedDict
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+
+if TYPE_CHECKING:
+    import polars as pl
+    from numpy.typing import NDArray
 
 try:
     import polars as pl
@@ -38,7 +92,11 @@ from liq.features.indicators.base import BaseIndicator
 
 
 def _check_talib() -> None:
-    """Check if TA-Lib is available."""
+    """Check if TA-Lib is available.
+
+    Raises:
+        ImportError: If TA-Lib is not installed.
+    """
     if not HAS_TALIB:
         raise ImportError(
             "TA-Lib is required for dynamic indicators. "
@@ -50,10 +108,10 @@ def get_available_indicators() -> list[str]:
     """Get list of all available TA-Lib indicators.
 
     Returns:
-        List of indicator names (lowercase)
+        List of indicator names (lowercase).
 
     Raises:
-        ImportError: If TA-Lib is not installed
+        ImportError: If TA-Lib is not installed.
     """
     _check_talib()
     return sorted([func.lower() for func in talib.get_functions()])
@@ -63,20 +121,21 @@ def get_indicator_info(name: str) -> dict[str, Any]:
     """Get metadata about a TA-Lib indicator.
 
     Args:
-        name: Indicator name (case-insensitive)
+        name: Indicator name (case-insensitive).
 
     Returns:
         Dictionary with indicator metadata:
-        - name: Indicator name
-        - display_name: Full name
+        - name: Indicator name (uppercase)
+        - display_name: Human-readable name
         - group: Category (e.g., "Overlap Studies", "Momentum Indicators")
-        - inputs: Required input arrays
+        - inputs: Required input array names
+        - input_names: Detailed input specification (OrderedDict)
         - parameters: Dict of parameter names to default values
         - outputs: List of output names
 
     Raises:
-        ImportError: If TA-Lib is not installed
-        ValueError: If indicator not found
+        ImportError: If TA-Lib is not installed.
+        ValueError: If indicator not found.
     """
     _check_talib()
     name_upper = name.upper()
@@ -108,23 +167,212 @@ def get_indicator_info(name: str) -> dict[str, Any]:
         "display_name": func.info.get("display_name", name_upper),
         "group": func.info.get("group", "Unknown"),
         "inputs": inputs,
+        "input_names": func.input_names,
         "parameters": parameters,
         "outputs": outputs,
     }
+
+
+def _to_float64(arr: "NDArray[Any]") -> "NDArray[np.floating[Any]]":
+    """Convert array to float64 for TA-Lib compatibility.
+
+    TA-Lib requires float64 arrays. This handles int and other numeric types.
+
+    Args:
+        arr: Input numpy array.
+
+    Returns:
+        Float64 numpy array.
+    """
+    if arr.dtype != np.float64:
+        return arr.astype(np.float64)
+    return arr
+
+
+def map_inputs(
+    df: "pl.DataFrame",
+    input_names: "OrderedDict[str, Any]",
+    price_column: str = "close",
+    indicator_name: str = "unknown",
+) -> dict[str, "NDArray[np.floating[Any]]"]:
+    """Map DataFrame columns to TA-Lib input arrays.
+
+    This function implements the input mapping rules for TA-Lib indicators.
+    See module docstring for detailed mapping rules.
+
+    All arrays are converted to float64 as required by TA-Lib.
+
+    Args:
+        df: DataFrame with OHLCV columns (ts, open, high, low, close, volume).
+        input_names: TA-Lib input specification from abstract.Function.input_names.
+        price_column: Column to use for single-price inputs (default: 'close').
+            Can be 'close', 'midrange', 'typical', 'weighted_close'.
+        indicator_name: Name of indicator for error messages.
+
+    Returns:
+        Dictionary mapping TA-Lib input names to numpy float64 arrays.
+
+    Raises:
+        ValueError: If required column is missing from DataFrame.
+
+    Example:
+        >>> input_names = OrderedDict({'prices': ['high', 'low', 'close', 'volume']})
+        >>> inputs = map_inputs(df, input_names, indicator_name='MFI')
+        >>> print(inputs.keys())
+        dict_keys(['high', 'low', 'close', 'volume'])
+    """
+    inputs: dict[str, NDArray[np.floating[Any]]] = {}
+
+    for input_key, input_spec in input_names.items():
+        input_key_lower = input_key.lower()
+
+        if input_key_lower == "prices":
+            # 'prices' maps to a list of required columns
+            # e.g., ['high', 'low', 'close', 'volume'] for MFI
+            # e.g., ['open', 'high', 'low', 'close'] for BOP
+            if isinstance(input_spec, list):
+                for col in input_spec:
+                    col_lower = col.lower()
+                    if col_lower in df.columns:
+                        inputs[col_lower] = _to_float64(df[col_lower].to_numpy())
+                    else:
+                        raise ValueError(
+                            f"Indicator {indicator_name} requires '{col_lower}' column, "
+                            f"but it's not in the DataFrame. Available: {df.columns}"
+                        )
+            else:
+                # Fallback: map standard OHLC (shouldn't happen with well-formed input_names)
+                for col in ["high", "low", "close"]:
+                    if col in df.columns:
+                        inputs[col] = _to_float64(df[col].to_numpy())
+
+        elif input_key_lower == "price":
+            # Single price input - use configurable price column
+            inputs["close"] = _to_float64(df[price_column].to_numpy())
+
+        elif input_key_lower in ("real", "real0"):
+            # Real value input - use configurable price column
+            inputs["close"] = _to_float64(df[price_column].to_numpy())
+
+        elif input_key_lower == "real1":
+            # Second real input - use high if available
+            if "high" in df.columns:
+                inputs["high"] = _to_float64(df["high"].to_numpy())
+            else:
+                inputs["close"] = _to_float64(df[price_column].to_numpy())
+
+        elif input_key_lower in ("price0", "price1"):
+            # Two-input indicators (BETA, CORREL) - input_spec specifies the column
+            # e.g., {'price0': 'high', 'price1': 'low'}
+            if isinstance(input_spec, str) and input_spec.lower() in df.columns:
+                col = input_spec.lower()
+                inputs[col] = _to_float64(df[col].to_numpy())
+            elif price_column in df.columns:
+                # Fallback to configurable price column
+                inputs[price_column] = _to_float64(df[price_column].to_numpy())
+            else:
+                raise ValueError(
+                    f"Indicator {indicator_name} requires '{input_spec}' column, "
+                    f"but it's not in the DataFrame. Available: {df.columns}"
+                )
+
+        elif input_key_lower == "periods":
+            # Variable period input (for MAVP) - skip, handled by params
+            continue
+
+        else:
+            # Direct column lookup
+            if input_key_lower in df.columns:
+                inputs[input_key_lower] = _to_float64(df[input_key_lower].to_numpy())
+            else:
+                raise ValueError(
+                    f"Indicator {indicator_name} requires '{input_key_lower}' column, "
+                    f"but it's not in the DataFrame. Available: {df.columns}"
+                )
+
+    return inputs
+
+
+def format_outputs(
+    ts_series: "pl.Series",
+    result_arrays: Any,
+    output_names: list[str],
+) -> "pl.DataFrame":
+    """Format TA-Lib output arrays into a Polars DataFrame.
+
+    Handles single-output and multi-output indicators, as well as
+    different return types (ndarray, tuple, list).
+
+    Args:
+        ts_series: Timestamp series from input DataFrame.
+        result_arrays: Output from TA-Lib function call.
+        output_names: List of output names from indicator info.
+
+    Returns:
+        DataFrame with timestamp and output columns, filtered to remove NaN rows.
+
+    Example:
+        >>> # Single output
+        >>> result = format_outputs(df['ts'], rsi_result, ['real'])
+        >>> print(result.columns)
+        ['ts', 'value']
+
+        >>> # Multi output
+        >>> result = format_outputs(df['ts'], macd_result, ['macd', 'signal', 'histogram'])
+        >>> print(result.columns)
+        ['ts', 'macd', 'signal', 'histogram']
+    """
+    if len(output_names) == 1:
+        # Single output - normalize to array
+        if isinstance(result_arrays, np.ndarray):
+            values = result_arrays
+        elif isinstance(result_arrays, (tuple, list)):
+            values = result_arrays[0]
+        else:
+            values = result_arrays
+
+        result = pl.DataFrame({"ts": ts_series, "value": values})
+        return result.filter(pl.col("value").is_not_nan())
+
+    else:
+        # Multi-output
+        result_dict: dict[str, Any] = {"ts": ts_series}
+
+        # Handle different return types (tuple, list, or single array)
+        if isinstance(result_arrays, (tuple, list)):
+            result_list = list(result_arrays)
+        else:
+            result_list = [result_arrays]
+
+        # Handle case where outputs and result_arrays lengths differ
+        n_outputs = min(len(output_names), len(result_list))
+        for i in range(n_outputs):
+            output_name = output_names[i]
+            values = result_list[i]
+            result_dict[output_name.lower()] = values
+
+        result = pl.DataFrame(result_dict)
+
+        # Filter NaN rows - only filter on columns we actually added
+        for i in range(n_outputs):
+            output_name = output_names[i]
+            result = result.filter(pl.col(output_name.lower()).is_not_nan())
+
+        return result
 
 
 def _create_dynamic_indicator_class(name: str) -> type[BaseIndicator]:
     """Create a dynamic indicator class for a TA-Lib function.
 
     Args:
-        name: Indicator name (case-insensitive)
+        name: Indicator name (case-insensitive).
 
     Returns:
-        Dynamically created indicator class
+        Dynamically created indicator class.
 
     Raises:
-        ImportError: If TA-Lib is not installed
-        ValueError: If indicator not found or unsupported
+        ImportError: If TA-Lib is not installed.
+        ValueError: If indicator not found or unsupported.
     """
     _check_talib()
     info = get_indicator_info(name)
@@ -144,59 +392,36 @@ def _create_dynamic_indicator_class(name: str) -> type[BaseIndicator]:
         _talib_func = func
 
         def _compute(self, df: pl.DataFrame) -> pl.DataFrame:
-            """Compute indicator using TA-Lib."""
-            import numpy as np
+            """Compute indicator using TA-Lib.
 
-            inputs = {}
-            for input_name in self._indicator_info["inputs"]:
-                input_name_lower = input_name.lower()
+            Args:
+                df: DataFrame with OHLCV columns.
 
-                if input_name_lower == "prices":
-                    inputs["high"] = df["high"].to_numpy()
-                    inputs["low"] = df["low"].to_numpy()
-                    inputs["close"] = df["close"].to_numpy()
-                elif input_name_lower == "price":
-                    inputs[input_name] = df["close"].to_numpy()
-                else:
-                    if input_name_lower not in df.columns:
-                        raise ValueError(
-                            f"Indicator {self.name} requires '{input_name_lower}' column, "
-                            f"but it's not in the DataFrame. Available: {df.columns}"
-                        )
-                    inputs[input_name] = df[input_name_lower].to_numpy()
+            Returns:
+                DataFrame with timestamp and indicator value(s).
+            """
+            # Get price column for single-value inputs
+            price_col = self._params.get("_price_column", "close")
+            if price_col not in df.columns:
+                price_col = "close"
 
+            # Map inputs using the extracted function
+            inputs = map_inputs(
+                df,
+                self._talib_func.input_names,
+                price_column=price_col,
+                indicator_name=self.name,
+            )
+
+            # Call TA-Lib function
             result_arrays = self._talib_func(inputs, **self.params)
 
-            outputs = self._indicator_info["outputs"]
-
-            if len(outputs) == 1:
-                if isinstance(result_arrays, np.ndarray):
-                    values = result_arrays
-                else:
-                    values = (
-                        result_arrays[0]
-                        if isinstance(result_arrays, tuple)
-                        else result_arrays
-                    )
-
-                result = pl.DataFrame({"ts": df["ts"], "value": values})
-                return result.filter(pl.col("value").is_not_nan())
-
-            else:
-                result_dict = {"ts": df["ts"]}
-
-                if not isinstance(result_arrays, tuple):
-                    result_arrays = (result_arrays,)
-
-                for output_name, values in zip(outputs, result_arrays, strict=True):
-                    result_dict[output_name.lower()] = values
-
-                result = pl.DataFrame(result_dict)
-
-                for output_name in outputs:
-                    result = result.filter(pl.col(output_name.lower()).is_not_nan())
-
-                return result
+            # Format outputs using the extracted function
+            return format_outputs(
+                df["ts"],
+                result_arrays,
+                self._indicator_info["outputs"],
+            )
 
     DynamicIndicator.__name__ = name_upper
     DynamicIndicator.__qualname__ = name_upper
@@ -224,14 +449,14 @@ def get_dynamic_indicator(name: str) -> type[BaseIndicator]:
     created on first access and cached for subsequent use.
 
     Args:
-        name: Indicator name (case-insensitive)
+        name: Indicator name (case-insensitive).
 
     Returns:
-        Indicator class that can be instantiated
+        Indicator class that can be instantiated.
 
     Raises:
-        ImportError: If TA-Lib is not installed
-        ValueError: If indicator not found or unsupported
+        ImportError: If TA-Lib is not installed.
+        ValueError: If indicator not found or unsupported.
 
     Example:
         >>> CCI = get_dynamic_indicator("CCI")
@@ -249,14 +474,22 @@ def get_dynamic_indicator(name: str) -> type[BaseIndicator]:
     return indicator_class
 
 
+def clear_indicator_cache() -> None:
+    """Clear the indicator class cache.
+
+    Useful for testing or when TA-Lib configuration changes.
+    """
+    _indicator_class_cache.clear()
+
+
 def list_dynamic_indicators() -> list[dict[str, Any]]:
     """List all available TA-Lib indicators with metadata.
 
     Returns:
-        List of dicts with indicator information
+        List of dicts with indicator information.
 
     Raises:
-        ImportError: If TA-Lib is not installed
+        ImportError: If TA-Lib is not installed.
     """
     _check_talib()
     result = []

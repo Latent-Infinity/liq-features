@@ -25,6 +25,10 @@ Example:
 
 import polars as pl
 
+# Default Fibonacci-based windows for rolling calculations
+# These periods are commonly used in quantitative trading strategies
+DEFAULT_FIBONACCI_WINDOWS: list[int] = [55, 210, 340, 890, 3750]
+
 
 def compute_derived_fields(df: pl.DataFrame) -> pl.DataFrame:
     """Compute derived OHLC fields.
@@ -185,3 +189,143 @@ def compute_volatility(
         vol_expr = vol_expr * math.sqrt(periods_per_year)
 
     return df.with_columns([vol_expr.alias(f"volatility_{window}")])
+
+
+def compute_rolling_returns(
+    df: pl.DataFrame,
+    column: str = "close",
+    windows: list[int] | None = None,
+    log_returns: bool = True,
+    aggregations: list[str] | None = None,
+) -> pl.DataFrame:
+    """Compute rolling aggregations of returns over multiple windows.
+
+    This function calculates returns and then applies rolling aggregations
+    (sum, mean) over configurable window sizes. Useful for capturing
+    momentum and trend features at different time scales.
+
+    Args:
+        df: DataFrame with price data
+        column: Column to compute returns from (default: "close")
+        windows: Window sizes for rolling aggregations
+                 (default: DEFAULT_FIBONACCI_WINDOWS [55, 210, 340, 890, 3750])
+        log_returns: If True, use log returns (default: True)
+        aggregations: Aggregation types to compute (default: ["sum", "mean"])
+
+    Returns:
+        DataFrame with additional rolling return columns:
+        - {prefix}_sum_{window} for rolling sum
+        - {prefix}_mean_{window} for rolling mean
+        where prefix is "log_return" or "return"
+
+    Raises:
+        ValueError: If column not found in DataFrame
+
+    Example:
+        >>> df = pl.DataFrame({"close": [100.0, 102.0, 101.0, ...]})
+        >>> result = compute_rolling_returns(df, windows=[55, 210])
+        >>> # Adds: log_return_sum_55, log_return_mean_55, log_return_sum_210, ...
+    """
+    if column not in df.columns:
+        raise ValueError(f"Column '{column}' not found in DataFrame")
+
+    if windows is None:
+        windows = DEFAULT_FIBONACCI_WINDOWS.copy()
+
+    if aggregations is None:
+        aggregations = ["sum", "mean"]
+
+    # Compute returns first
+    prefix = "log_return" if log_returns else "return"
+    return_col = prefix
+
+    if log_returns:
+        return_expr = (pl.col(column) / pl.col(column).shift(1)).log()
+    else:
+        return_expr = (pl.col(column) - pl.col(column).shift(1)) / pl.col(column).shift(
+            1
+        )
+
+    result = df.with_columns([return_expr.alias(return_col)])
+
+    # Add rolling aggregations for each window
+    for window in windows:
+        agg_exprs = []
+        if "sum" in aggregations:
+            agg_exprs.append(
+                pl.col(return_col)
+                .rolling_sum(window_size=window)
+                .alias(f"{prefix}_sum_{window}")
+            )
+        if "mean" in aggregations:
+            agg_exprs.append(
+                pl.col(return_col)
+                .rolling_mean(window_size=window)
+                .alias(f"{prefix}_mean_{window}")
+            )
+        if agg_exprs:
+            result = result.with_columns(agg_exprs)
+
+    return result
+
+
+def compute_multi_window_volatility(
+    df: pl.DataFrame,
+    column: str = "close",
+    windows: list[int] | None = None,
+    annualize: bool = True,
+    periods_per_year: int = 252,
+) -> pl.DataFrame:
+    """Compute rolling volatility over multiple windows.
+
+    Calculates the standard deviation of returns over configurable
+    window sizes, with optional annualization. Useful for capturing
+    volatility clustering at different time scales.
+
+    Args:
+        df: DataFrame with price data
+        column: Column to compute volatility from (default: "close")
+        windows: Window sizes for volatility calculation
+                 (default: DEFAULT_FIBONACCI_WINDOWS [55, 210, 340, 890, 3750])
+        annualize: If True, annualize the volatility (default: True)
+        periods_per_year: Periods per year for annualization (default: 252)
+
+    Returns:
+        DataFrame with additional volatility columns:
+        - volatility_{window} for each window size
+
+    Raises:
+        ValueError: If column not found in DataFrame
+
+    Example:
+        >>> df = pl.DataFrame({"close": [100.0, 102.0, 101.0, ...]})
+        >>> result = compute_multi_window_volatility(df, windows=[55, 210])
+        >>> # Adds: volatility_55, volatility_210
+    """
+    if column not in df.columns:
+        raise ValueError(f"Column '{column}' not found in DataFrame")
+
+    if windows is None:
+        windows = DEFAULT_FIBONACCI_WINDOWS.copy()
+
+    # Compute returns first
+    return_col = "_return"
+    return_expr = (pl.col(column) - pl.col(column).shift(1)) / pl.col(column).shift(1)
+    result = df.with_columns([return_expr.alias(return_col)])
+
+    # Compute volatility for each window
+    import math
+
+    annualization_factor = math.sqrt(periods_per_year) if annualize else 1.0
+
+    vol_exprs = []
+    for window in windows:
+        vol_expr = (
+            pl.col(return_col).rolling_std(window_size=window) * annualization_factor
+        )
+        vol_exprs.append(vol_expr.alias(f"volatility_{window}"))
+
+    result = result.with_columns(vol_exprs)
+
+    # Drop temporary return column
+    return result.drop(return_col)

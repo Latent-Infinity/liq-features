@@ -28,6 +28,8 @@ dependencies = [
     "rich>=13.9",
     "liq-data>=0.1.0",
     "liq-store>=0.1.0",
+    "scikit-learn>=1.4",
+    "scipy>=1.11",
 ]
 
 [project.scripts]
@@ -40,9 +42,13 @@ talib = [
 xxhash = [
     "xxhash>=3.0.0",
 ]
+selection = [
+    "mrmr-selection>=0.2.8",
+]
 all = [
     "ta-lib>=0.4.0",
     "xxhash>=3.0.0",
+    "mrmr-selection>=0.2.8",
 ]
 dev = [
     "pytest>=8.3",
