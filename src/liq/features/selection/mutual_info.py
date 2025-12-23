@@ -6,13 +6,15 @@ Provides a Polars-friendly interface to sklearn's mutual_info_regression.
 from __future__ import annotations
 
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from numpy.typing import NDArray
 
 # Default to all available cores
@@ -96,20 +98,25 @@ def mutual_info_scores(
     return result
 
 
-def _compute_mi_single_feature(
+def _compute_mi_single_feature_from_array(
+    col_idx: int,
     col_name: str,
-    x_col: "NDArray[np.floating]",
+    X_np: "NDArray[np.floating]",
     y_np: "NDArray[np.floating]",
     n_neighbors: int,
     random_state: int | None,
     min_samples: int,
 ) -> dict:
-    """Compute MI for a single feature (worker function for parallel execution).
+    """Compute MI for a single feature using shared numpy arrays.
+
+    This version uses a shared numpy array and column index to avoid
+    data duplication across threads. Memory efficient for large feature sets.
 
     Args:
+        col_idx: Column index in X_np array.
         col_name: Feature column name.
-        x_col: Feature values as numpy array.
-        y_np: Target values as numpy array.
+        X_np: Full feature matrix as numpy array (shared across threads).
+        y_np: Target values as numpy array (shared across threads).
         n_neighbors: Number of neighbors for MI estimation.
         random_state: Random seed for reproducibility.
         min_samples: Minimum valid samples required.
@@ -118,6 +125,9 @@ def _compute_mi_single_feature(
         Dict with feature, mi_score, n_samples.
     """
     from sklearn.feature_selection import mutual_info_regression
+
+    # Get column view (no copy, just a view into shared array)
+    x_col = X_np[:, col_idx]
 
     # Create mask for valid rows (non-NaN, non-inf in both feature and target)
     mask = (
@@ -162,6 +172,7 @@ def mutual_info_scores_per_feature(
     normalize: bool = False,
     min_samples: int = 100,
     n_jobs: int | None = None,
+    progress_callback: "Callable[[int, int], None] | None" = None,
 ) -> pl.DataFrame:
     """Calculate MI for each feature independently, handling NaN per-feature.
 
@@ -170,7 +181,8 @@ def mutual_info_scores_per_feature(
     that specific feature and target are both valid. This is essential
     when features have different warmup periods.
 
-    Uses parallel processing for faster computation on multi-core systems.
+    Uses parallel threading for faster computation on multi-core systems.
+    Memory-efficient: converts X to numpy once and shares across threads.
 
     Args:
         X: DataFrame of features (each column is a feature).
@@ -180,6 +192,7 @@ def mutual_info_scores_per_feature(
         normalize: If True, normalize scores to [0, 1] range.
         min_samples: Minimum valid samples required to calculate MI.
         n_jobs: Number of parallel workers. None = all cores.
+        progress_callback: Optional callback(current, total) for progress updates.
 
     Returns:
         DataFrame with columns: feature, mi_score, n_samples
@@ -194,32 +207,43 @@ def mutual_info_scores_per_feature(
         n_jobs = DEFAULT_N_JOBS
 
     feature_names = X.columns
+
+    # Convert to numpy ONCE upfront - shared across all threads
+    # This is the key memory optimization: ~12GB for 104k x 14k instead of
+    # duplicating per process
+    X_np: NDArray[np.floating] = X.to_numpy()
     y_np: NDArray[np.floating] = y.to_numpy()
 
-    # For small number of features, sequential is faster due to process overhead
-    if len(feature_names) < 10 or n_jobs == 1:
+    n_features = len(feature_names)
+
+    # For small number of features, sequential is faster due to thread overhead
+    if n_features < 10 or n_jobs == 1:
         results = []
-        for col in feature_names:
-            x_col = X[col].to_numpy()
-            result = _compute_mi_single_feature(
-                col, x_col, y_np, n_neighbors, random_state, min_samples
+        for col_idx, col_name in enumerate(feature_names):
+            result = _compute_mi_single_feature_from_array(
+                col_idx, col_name, X_np, y_np, n_neighbors, random_state, min_samples
             )
             results.append(result)
+            if progress_callback:
+                progress_callback(col_idx + 1, n_features)
     else:
-        # Parallel execution for many features
+        # Parallel execution using ThreadPoolExecutor
+        # Threads share memory (unlike processes), so X_np and y_np aren't duplicated
         results = []
-        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
+        completed = 0
+        with ThreadPoolExecutor(max_workers=n_jobs) as executor:
             futures = {
                 executor.submit(
-                    _compute_mi_single_feature,
-                    col,
-                    X[col].to_numpy(),
+                    _compute_mi_single_feature_from_array,
+                    col_idx,
+                    col_name,
+                    X_np,
                     y_np,
                     n_neighbors,
                     random_state,
                     min_samples,
-                ): col
-                for col in feature_names
+                ): col_name
+                for col_idx, col_name in enumerate(feature_names)
             }
 
             for future in as_completed(futures):
@@ -233,6 +257,9 @@ def mutual_info_scores_per_feature(
                         "mi_score": np.nan,
                         "n_samples": 0,
                     })
+                completed += 1
+                if progress_callback and completed % 100 == 0:  # Update every 100 features
+                    progress_callback(completed, n_features)
 
     result = pl.DataFrame(results)
 

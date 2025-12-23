@@ -195,3 +195,91 @@ class TestMRMRImportError:
         # This test would need to mock the import, skipping for now
         # as it's tested implicitly by the skipif marker
         pass
+
+
+class TestMRMRNumericalStability:
+    """Tests for numerical stability with edge cases."""
+
+    def test_constant_features(self) -> None:
+        """Test mRMR handles constant features without warnings."""
+        np.random.seed(42)
+        n = 100
+
+        features = pl.DataFrame({
+            "constant": [5.0] * n,  # Constant feature (std=0)
+            "varying": np.random.randn(n),
+            "also_constant": [0.0] * n,
+        })
+        target = pl.Series("y", np.random.randn(n))
+
+        # Should not raise warnings or errors
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            selected = mrmr_select(features, target, K=2)
+
+        # Only the varying feature should be selected
+        assert "varying" in selected
+        assert len(selected) <= 2
+
+    def test_nan_values(self) -> None:
+        """Test mRMR handles NaN values correctly."""
+        np.random.seed(42)
+        n = 100
+
+        x1 = np.random.randn(n)
+        x2 = np.random.randn(n)
+        x2[0:10] = np.nan  # Add some NaN values
+
+        features = pl.DataFrame({"x1": x1, "x2": x2})
+        target = pl.Series("y", np.random.randn(n))
+
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            selected = mrmr_select(features, target, K=2)
+
+        assert len(selected) == 2
+
+    def test_inf_values(self) -> None:
+        """Test mRMR handles inf values correctly."""
+        np.random.seed(42)
+        n = 100
+
+        x1 = np.random.randn(n)
+        x2 = np.random.randn(n)
+        x2[0] = np.inf  # Add inf value
+        x2[1] = -np.inf
+
+        features = pl.DataFrame({"x1": x1, "x2": x2})
+        target = pl.Series("y", np.random.randn(n))
+
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            selected = mrmr_select(features, target, K=2)
+
+        # x1 should be selected, x2 may have issues but should not crash
+        assert "x1" in selected
+
+    def test_mixed_problematic_features(self) -> None:
+        """Test mRMR handles mix of constant, NaN, inf features."""
+        np.random.seed(42)
+        n = 100
+
+        features = pl.DataFrame({
+            "constant": [1.0] * n,
+            "has_nan": [np.nan if i < 5 else np.random.randn() for i in range(n)],
+            "has_inf": [np.inf if i == 0 else np.random.randn() for i in range(n)],
+            "clean": np.random.randn(n),
+        })
+        target = pl.Series("y", np.random.randn(n))
+
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            selected = mrmr_select(features, target, K=3)
+
+        # Should work without warnings
+        assert len(selected) <= 3
+        assert "clean" in selected

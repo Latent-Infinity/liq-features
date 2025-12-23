@@ -275,8 +275,8 @@ def get_param_grid(indicator_name: str) -> dict[str, list[Any]]:
 
 # Categories to exclude from full sweep by default
 # Pattern Recognition produces discrete outputs (100, -100, 0) which may not work well with MI
-# but can still be included for completeness
-EXCLUDED_CATEGORIES: set[str] = {"Pattern Recognition"}
+# Math Transform (ln, log10, sqrt, sin, cos, etc.) are pure price transforms with no predictive value
+EXCLUDED_CATEGORIES: set[str] = {"Pattern Recognition", "Math Transform"}
 
 # Categories that can be optionally included
 OPTIONAL_CATEGORIES: set[str] = {"Pattern Recognition"}
@@ -298,12 +298,21 @@ PERIOD_VARIATIONS_EXTENDED: list[int] = [2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 23
 FAST_PERIOD_VARIATIONS_EXTENDED: list[int] = [2, 3, 5, 8, 13, 21, 34, 55, 89]
 SLOW_PERIOD_VARIATIONS_EXTENDED: list[int] = [13, 21, 34, 55, 89, 144, 233, 377, 610, 987]
 
+# Coarse variations for initial indicator ranking
+# Use these to quickly identify promising indicator families before detailed sweep
+# Based on empirical analysis: 5 catches top performers (minindex), 8 catches natr,
+# 21 is middle ground, 55 is better than 89 for MAs/bbands
+PERIOD_VARIATIONS_COARSE: list[int] = [5, 8, 21, 55]
+FAST_PERIOD_VARIATIONS_COARSE: list[int] = [5, 8]
+SLOW_PERIOD_VARIATIONS_COARSE: list[int] = [21, 55]
+
 
 def auto_generate_param_grid(
     indicator_info: dict[str, Any],
     *,
     period_variations: list[int] | None = None,
     use_extended: bool = False,
+    use_coarse: bool = False,
     max_period: int | None = None,
 ) -> dict[str, list[Any]]:
     """Auto-generate parameter grid based on TA-Lib indicator metadata.
@@ -315,6 +324,7 @@ def auto_generate_param_grid(
         indicator_info: Indicator metadata from get_indicator_info().
         period_variations: Custom period variations. Uses default if None.
         use_extended: If True, use extended Fibonacci sequences (up to 2584).
+        use_coarse: If True, use only 4 periods (5, 8, 21, 55) for fast initial ranking.
         max_period: Maximum period to include (filters all period parameters).
 
     Returns:
@@ -326,14 +336,18 @@ def auto_generate_param_grid(
         >>> grid = auto_generate_param_grid(info)
         >>> print(grid)
         {'timeperiod': [5, 8, 13, 21, 34, 55]}
-        >>> grid = auto_generate_param_grid(info, use_extended=True, max_period=500)
+        >>> grid = auto_generate_param_grid(info, use_coarse=True)
         >>> print(grid)
-        {'timeperiod': [2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377]}
+        {'timeperiod': [5, 8, 21, 55]}
     """
     if period_variations:
         periods = period_variations
         fast_periods = [p for p in period_variations if p <= 55]
         slow_periods = [p for p in period_variations if p >= 13]
+    elif use_coarse:
+        periods = PERIOD_VARIATIONS_COARSE
+        fast_periods = FAST_PERIOD_VARIATIONS_COARSE
+        slow_periods = SLOW_PERIOD_VARIATIONS_COARSE
     elif use_extended:
         periods = PERIOD_VARIATIONS_EXTENDED
         fast_periods = FAST_PERIOD_VARIATIONS_EXTENDED
@@ -411,6 +425,7 @@ def generate_talib_param_grids(
     include_midrange: bool = False,
     include_patterns: bool = False,
     use_extended: bool = False,
+    use_coarse: bool = False,
     max_period: int | None = None,
     timeframe: str | None = None,
 ) -> dict[str, dict[str, list[Any]]]:
@@ -428,6 +443,8 @@ def generate_talib_param_grids(
             These produce discrete outputs (100, -100, 0) which may not work well
             with Mutual Information but can be useful for other analyses.
         use_extended: If True, use extended Fibonacci periods (up to 2584).
+        use_coarse: If True, use only 4 periods (5, 8, 21, 55) for fast initial ranking.
+            Reduces variations by ~80% for quick indicator family discovery.
         max_period: Maximum period to include in grids.
         timeframe: If provided, auto-calculate max_period based on typical bar counts.
             Overrides max_period if both are provided.
@@ -440,9 +457,8 @@ def generate_talib_param_grids(
         >>> len(grids)
         97  # ~97 non-pattern indicators
 
-        >>> grids = generate_talib_param_grids(include_patterns=True)
-        >>> len(grids)
-        158  # ~158 including candlestick patterns
+        >>> grids = generate_talib_param_grids(use_coarse=True)
+        >>> # ~240 variations (80 indicators × 3 periods)
 
         >>> # Extended sweep for 1h data
         >>> grids = generate_talib_param_grids(use_extended=True, timeframe="1h")
@@ -492,7 +508,7 @@ def generate_talib_param_grids(
             continue
 
         # Use existing grid if defined, otherwise auto-generate
-        if name in DEFAULT_PARAM_GRIDS:
+        if name in DEFAULT_PARAM_GRIDS and not use_coarse:
             # Apply max_period filter to DEFAULT_PARAM_GRIDS too
             grid = DEFAULT_PARAM_GRIDS[name].copy()
             if max_period is not None:
@@ -502,7 +518,10 @@ def generate_talib_param_grids(
             grids[name] = grid
         else:
             grids[name] = auto_generate_param_grid(
-                ind, use_extended=use_extended, max_period=max_period
+                ind,
+                use_extended=use_extended,
+                use_coarse=use_coarse,
+                max_period=max_period,
             )
 
         # Check if this indicator uses single price input
