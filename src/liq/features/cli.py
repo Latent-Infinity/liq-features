@@ -1,215 +1,266 @@
-"""Typer CLI for feature pipeline operations."""
+"""CLI for liq-features cache management.
+
+Provides commands for:
+- Cache statistics
+- Listing cached indicators
+- Cleaning cache entries with filters
+- Index management
+"""
 
 from __future__ import annotations
 
-import json
+import sys
 from pathlib import Path
 from typing import Optional
 
-import polars as pl
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from liq.features.cache import IndicatorCache
-from liq.features.feature_set import FeatureDefinition, FeatureSet
-from liq.features.store import FeatureStore
-from liq.features.pipeline import FeaturePipeline
-from liq.features.derived import compute_derived_fields
-from liq.store.parquet import ParquetStore
-from liq.features.feature_set import FeatureSet
+app = typer.Typer(
+    name="liq-features",
+    help="liq-features CLI for cache management and feature operations",
+    no_args_is_help=True,
+)
 
-app = typer.Typer(help="liq-features CLI")
+cache_app = typer.Typer(
+    name="cache",
+    help="Cache management commands",
+    no_args_is_help=True,
+)
+app.add_typer(cache_app, name="cache")
+
 console = Console()
 
 
-@app.command("fit-pipeline")
-def fit_pipeline(
-    series_path: Path = typer.Argument(..., help="Path to CSV/Parquet/JSON series with a 'value' column"),
-    model_type: str = typer.Option("nn", help="Model type: tree|nn|transformer|diffusion"),
-    d: float = typer.Option(0.4, help="Fractional differencing d"),
-    output: Path = typer.Option(..., help="Where to write pipeline JSON"),
-) -> None:
-    """Fit stationarity + scaling pipeline and persist state."""
-    series = _load_series(series_path)
-    pipeline = FeaturePipeline(model_type=model_type, d=d)
-    pipeline.fit(series)
-    output.write_text(json.dumps(pipeline.to_dict()))
-    console.print(f"[green]Saved pipeline to {output}[/green]")
+def _get_cache(cache_dir: Path | None = None):
+    """Get IndicatorCache instance."""
+    from liq.features.cache import IndicatorCache
+    from liq.store.parquet import ParquetStore
+
+    if cache_dir is not None:
+        storage = ParquetStore(str(cache_dir))
+        return IndicatorCache(storage=storage)
+    return IndicatorCache()
 
 
-@app.command("transform")
-def transform(
-    series_path: Path = typer.Argument(..., help="Path to CSV/Parquet/JSON series with a 'value' column"),
-    pipeline_path: Path = typer.Argument(..., help="Path to pipeline JSON"),
-    output: Optional[Path] = typer.Option(None, help="Optional output path for transformed values"),
-) -> None:
-    """Apply persisted pipeline to a series."""
-    series = _load_series(series_path)
-    state = json.loads(pipeline_path.read_text())
-    pipeline = FeaturePipeline.from_dict(state)
-    transformed = pipeline.transform(series)
-    if output:
-        output.write_text(json.dumps(transformed))
-        console.print(f"[green]Wrote transformed series to {output}[/green]")
+def _format_bytes(size_bytes: int) -> str:
+    """Format bytes as human-readable string."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / 1024 / 1024:.1f} MB"
     else:
-        console.print(transformed)
+        return f"{size_bytes / 1024 / 1024 / 1024:.2f} GB"
 
 
-def _load_series(path: Path) -> list[float]:
-    if path.suffix.lower() == ".parquet":
-        df = pl.read_parquet(path)
-    elif path.suffix.lower() == ".csv":
-        df = pl.read_csv(path)
-    else:
-        with path.open() as f:
-            data = json.load(f)
-        df = pl.DataFrame(data)
-    if "value" not in df.columns:
-        raise ValueError("Expected column 'value'")
-    return df["value"].to_list()
-
-
-def _format_size(size_bytes: int) -> str:
-    """Format size in bytes to human-readable string."""
-    for unit in ["B", "KB", "MB", "GB"]:
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} TB"
-
-
-@app.command("indicator-cache")
-def indicator_cache(
-    cache_dir: Optional[Path] = typer.Option(None, help="Cache directory path"),
-    clear: bool = typer.Option(False, "--clear", help="Clear all cache entries"),
+@cache_app.command("stats")
+def cache_stats(
+    cache_dir: Optional[Path] = typer.Option(
+        None, "--cache-dir", "-d", help="Cache directory (default: from env)"
+    ),
 ) -> None:
-    """Show indicator cache status or clear cache."""
-    cache = IndicatorCache(cache_dir=cache_dir)
-
-    if clear:
-        cache.clear()
-        console.print("[green]Cache cleared[/green]")
-        return
-
+    """Show cache statistics."""
+    cache = _get_cache(cache_dir)
     stats = cache.stats()
 
-    table = Table(title="Indicator Cache Status")
+    table = Table(title="Cache Statistics")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
 
-    table.add_row("Cache Directory", str(cache.cache_dir))
-    table.add_row("Entries", str(stats["entries"]))
-    table.add_row("Total Size", _format_size(stats["total_size_bytes"]))
+    root = cache.storage_root
+    root_label = str(root) if root else "unknown"
+    table.add_row("Storage Root", root_label)
+    table.add_row("Total Entries", f"{stats['entries']:,}")
+    table.add_row("Total Size", _format_bytes(stats["total_size_bytes"]))
 
     console.print(table)
 
 
-@app.command("compute")
-def compute_features(
-    data_path: Optional[Path] = typer.Argument(
-        None, help="Bars file (Parquet/CSV) with timestamp and OHLCV. If omitted, load via liq-data."
+@cache_app.command("list")
+def cache_list(
+    cache_dir: Optional[Path] = typer.Option(
+        None, "--cache-dir", "-d", help="Cache directory"
     ),
-    symbol: str = typer.Option(..., "--symbol", "-s", help="Symbol for storage key"),
-    timeframe: str = typer.Option(..., "--timeframe", "-t", help="Timeframe, e.g. 1m"),
-    output_store: Path = typer.Option(..., "--store-root", help="Path to feature store root"),
-    feature_name: str = typer.Option("derived_midrange", help="Feature name to store"),
-    provider: Optional[str] = typer.Option(
-        None, "--provider", "-p", help="liq-data provider to load bars when data-path is omitted"
+    symbol: Optional[str] = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
+    indicator: Optional[str] = typer.Option(
+        None, "--indicator", "-i", help="Filter by indicator (supports wildcards)"
     ),
+    timeframe: Optional[str] = typer.Option(
+        None, "--timeframe", "-t", help="Filter by timeframe"
+    ),
+    limit: Optional[int] = typer.Option(None, "--limit", "-n", help="Limit results"),
 ) -> None:
-    """Compute a simple feature set (derived midrange) and store via liq-store."""
-    if data_path:
-        df = _load_bars(data_path)
-    else:
-        if not provider:
-            raise typer.BadParameter("Provide either data_path or --provider to load bars")
-        from liq.data.service import DataService
+    """List cached indicator entries."""
+    from liq.features.cache_models import CacheFilter
 
-        df = DataService().load(provider, symbol, timeframe)
-
-    store = ParquetStore(str(output_store))
-    fs = FeatureStore(storage=store)
-
-    # Simple feature: emit timestamp + midrange
-    def midrange_feature(df_: pl.DataFrame, input_col: str) -> pl.DataFrame:
-        derived = compute_derived_fields(df_)
-        return derived.select("timestamp", pl.col("midrange").alias("value"))
-
-    feature_def = FeatureDefinition(
-        name=feature_name,
-        func=midrange_feature,
-        lookback=0,
-        input_column="close",
+    cache = _get_cache(cache_dir)
+    filters = CacheFilter(
+        symbol=symbol,
+        indicator=indicator,
+        timeframe=timeframe,
+        limit=limit,
     )
-    feature_set = FeatureSet(name=feature_name, features=[feature_def])
-    fs.compute_feature_set(df, feature_set, symbol=symbol, timeframe=timeframe, force_recalculate=True)
-    console.print(f"[green]Computed and stored feature '{feature_name}' for {symbol} at {output_store}[/green]")
+
+    entries = cache.list_entries(filters if filters.symbol or filters.indicator or filters.timeframe or filters.limit else None)
+
+    if not entries:
+        console.print("[yellow]No cache entries found.[/yellow]")
+        return
+
+    table = Table(title=f"Cache Entries ({len(entries)} found)")
+    table.add_column("Symbol", style="cyan")
+    table.add_column("Indicator", style="green")
+    table.add_column("Timeframe", style="blue")
+    table.add_column("Params Hash", style="dim")
+    table.add_column("Size", style="magenta", justify="right")
+
+    for entry in entries:
+        table.add_row(
+            entry.symbol,
+            entry.indicator,
+            entry.timeframe,
+            entry.params_hash[:8] + "...",
+            _format_bytes(entry.size_bytes),
+        )
+
+    console.print(table)
 
 
-@app.command("validate")
-def validate_feature_set(
-    feature_set_path: Path = typer.Argument(..., help="Path to a JSON feature set definition"),
+@cache_app.command("clean")
+def cache_clean(
+    cache_dir: Optional[Path] = typer.Option(
+        None, "--cache-dir", "-d", help="Cache directory"
+    ),
+    symbol: Optional[str] = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
+    indicator: Optional[str] = typer.Option(
+        None, "--indicator", "-i", help="Filter by indicator (supports wildcards)"
+    ),
+    timeframe: Optional[str] = typer.Option(
+        None, "--timeframe", "-t", help="Filter by timeframe"
+    ),
+    data_hash: Optional[str] = typer.Option(
+        None, "--data-hash", help="Filter by data hash"
+    ),
+    older_than: Optional[str] = typer.Option(
+        None, "--older-than", help="Filter by age (e.g., '7d', '24h')"
+    ),
+    all_entries: bool = typer.Option(
+        False, "--all", help="Clean all entries (required if no filters)"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Preview without deleting"
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Skip confirmation prompt"
+    ),
 ) -> None:
-    """Validate feature set dependencies and lookback consistency."""
+    """Clean cache entries matching criteria."""
+    from liq.features.cache_models import CleanupCriteria
+
+    cache = _get_cache(cache_dir)
+
+    # Check if any filter is specified
+    has_filters = any([symbol, indicator, timeframe, data_hash, older_than])
+
+    if not has_filters and not all_entries:
+        console.print(
+            "[red]Error:[/red] Specify at least one filter or use --all to clean everything."
+        )
+        raise typer.Exit(1)
+
+    criteria = CleanupCriteria(
+        symbol=symbol,
+        indicator=indicator,
+        timeframe=timeframe,
+        data_hash=data_hash,
+        older_than=older_than,
+    )
+
+    # Preview what will be deleted
+    if dry_run:
+        result = cache.clean(criteria, dry_run=True)
+        console.print(f"[yellow]Dry run:[/yellow] Would delete {result.deleted_count} entries ({_format_bytes(result.freed_bytes)})")
+        return
+
+    # Get preview for confirmation
+    result = cache.clean(criteria, dry_run=True)
+
+    if result.deleted_count == 0:
+        console.print("[yellow]No entries match the criteria.[/yellow]")
+        return
+
+    # Confirm unless --force
+    if not force:
+        confirmed = typer.confirm(
+            f"Delete {result.deleted_count} entries ({_format_bytes(result.freed_bytes)})?"
+        )
+        if not confirmed:
+            console.print("[yellow]Cancelled.[/yellow]")
+            raise typer.Exit(0)
+
+    # Actually delete
+    result = cache.clean(criteria, dry_run=False)
+
+    if result.success:
+        console.print(
+            f"[green]✓[/green] Deleted {result.deleted_count} entries, freed {_format_bytes(result.freed_bytes)}"
+        )
+    else:
+        console.print(
+            f"[yellow]Deleted {result.deleted_count} entries with {len(result.errors)} errors[/yellow]"
+        )
+        for error in result.errors[:5]:
+            console.print(f"  [red]•[/red] {error}")
+
+
+@cache_app.command("rebuild-index")
+def cache_rebuild_index(
+    cache_dir: Optional[Path] = typer.Option(
+        None, "--cache-dir", "-d", help="Cache directory"
+    ),
+) -> None:
+    """Rebuild cache index from storage keys."""
+    cache = _get_cache(cache_dir)
+    df = cache.rebuild_index()
+    console.print(f"[green]✓[/green] Rebuilt cache index: {len(df)} entries")
+
+
+# Legacy command for backward compatibility
+@app.command("indicator-cache")
+def indicator_cache_legacy(
+    cache_dir: Optional[Path] = typer.Option(
+        None, "--cache-dir", help="Cache directory"
+    ),
+    clear: bool = typer.Option(False, "--clear", help="Clear all cache entries"),
+) -> None:
+    """Show cache status (legacy command, use 'cache stats' instead)."""
+    cache = _get_cache(cache_dir)
+
+    if clear:
+        stats = cache.stats()
+        cache.clear()
+        console.print(f"Cleared {stats['entries']:,} cache entries")
+        return
+
+    stats = cache.stats()
+    root = cache.storage_root
+    root_label = str(root) if root else "unknown"
+    console.print(f"Cache storage root: {root_label}")
+    console.print(f"Entries: {stats['entries']:,}")
+    console.print(f"Total size: {_format_bytes(stats['total_size_bytes'])}")
+
+
+def main() -> int:
+    """Main entry point."""
     try:
-        definitions = json.loads(feature_set_path.read_text())
-    except Exception as exc:  # pragma: no cover - user IO
-        raise typer.BadParameter(f"Could not read feature set file: {exc}") from exc
-
-    errors: list[str] = []
-    names: set[str] = set()
-    for item in definitions:
-        name = item.get("name")
-        if not name:
-            errors.append("Missing feature name")
-            continue
-        if name in names:
-            errors.append(f"Duplicate feature name: {name}")
-        names.add(name)
-        deps = item.get("dependencies", [])
-        for dep in deps:
-            if dep == name:
-                errors.append(f"Self-dependency detected for {name}")
-
-    # simple cycle detection via DFS on provided deps
-    graph = {item["name"]: set(item.get("dependencies", [])) for item in definitions if "name" in item}
-
-    visiting: set[str] = set()
-    visited: set[str] = set()
-
-    def _dfs(node: str) -> bool:
-        if node in visited:
-            return True
-        if node in visiting:
-            errors.append(f"Cyclic dependency detected at {node}")
-            return False
-        visiting.add(node)
-        for neighbor in graph.get(node, set()):
-            _dfs(neighbor)
-        visiting.remove(node)
-        visited.add(node)
-        return True
-
-    for node in graph:
-        _dfs(node)
-
-    if errors:
-        console.print("[red]Feature set validation failed:[/red]")
-        for err in errors:
-            console.print(f"- {err}")
-        raise typer.Exit(code=1)
-
-    console.print("[green]Feature set is valid[/green]")
-
-
-def _load_bars(path: Path) -> pl.DataFrame:
-    if path.suffix.lower() == ".parquet":
-        return pl.read_parquet(path)
-    if path.suffix.lower() == ".csv":
-        return pl.read_csv(path)
-    raise ValueError("Unsupported file type; use Parquet or CSV")
+        app()
+        return 0
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else 0
 
 
 if __name__ == "__main__":
-    app()
+    sys.exit(main())

@@ -24,10 +24,19 @@ from liq.features.validation.exceptions import (
     ConfigurationError,
     InsufficientDataError,
 )
+from liq.features.validation.logging_config import (
+    get_logger,
+    log_error,
+    log_function_entry,
+    log_function_exit,
+    log_result,
+)
 from liq.features.validation.results import TemporalStabilityResult
 
 if TYPE_CHECKING:
     import polars as pl
+
+logger = get_logger("temporal")
 
 # Minimum samples required per window
 MIN_WINDOW_SAMPLES = 20
@@ -66,8 +75,15 @@ def rolling_mi_analysis(
         ConfigurationError: If window_size or step_size invalid.
         InsufficientDataError: If not enough data for windowing.
     """
+    log_function_entry(
+        logger, "rolling_mi_analysis",
+        window_size=window_size, step_size=step_size,
+        n_neighbors=n_neighbors, regime_threshold=regime_threshold,
+    )
+
     # Validate parameters
     if window_size <= 0:
+        log_error(logger, "Invalid window_size", window_size=window_size)
         raise ConfigurationError(
             "window_size must be positive",
             parameter="window_size",
@@ -188,6 +204,17 @@ def rolling_mi_analysis(
     for i, corr in enumerate(adjacent_correlations):
         if corr < regime_threshold:
             regime_changes.append(i)
+
+    logger.info(f"Rolling MI analysis: {n_windows} windows, window_size={window_size}")
+    log_result(
+        logger, "Temporal stability analysis complete",
+        n_windows=n_windows, mean_correlation=f"{mean_correlation:.4f}",
+        n_regime_changes=len(regime_changes),
+    )
+    log_function_exit(
+        logger, "rolling_mi_analysis",
+        f"mean_rho={mean_correlation:.4f}, regime_changes={len(regime_changes)}",
+    )
 
     return TemporalStabilityResult(
         features=features,

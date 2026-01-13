@@ -22,10 +22,18 @@ from liq.features.validation.exceptions import (
     ConfigurationError,
     InsufficientDataError,
 )
+from liq.features.validation.logging_config import (
+    get_logger,
+    log_function_entry,
+    log_function_exit,
+    log_result,
+)
 from liq.features.validation.results import OutOfSampleResult
 
 if TYPE_CHECKING:
     import polars as pl
+
+logger = get_logger("out_of_sample")
 
 # Minimum samples required per split for reliable MI estimation
 MIN_SAMPLES_PER_SPLIT = 10
@@ -64,6 +72,12 @@ def validate_oos(
         InsufficientDataError: If not enough samples for split.
         ValueError: If features not found in DataFrame.
     """
+    log_function_entry(
+        logger, "validate_oos",
+        n_features=len(features) if features else "all",
+        test_ratio=test_ratio, temporal=temporal,
+    )
+
     # Validate test_ratio
     if test_ratio <= 0 or test_ratio >= 1:
         raise ConfigurationError(
@@ -166,6 +180,16 @@ def validate_oos(
         spearman_correlation = float(rho) if not np.isnan(rho) else 0.0
     else:
         spearman_correlation = 1.0  # Single feature always perfectly correlated
+
+    log_result(
+        logger, "OOS validation complete",
+        n_features=len(features), spearman_rho=f"{spearman_correlation:.4f}",
+        n_train=n_train, n_test=n_test,
+    )
+    log_function_exit(
+        logger, "validate_oos",
+        f"spearman_rho={spearman_correlation:.4f}",
+    )
 
     return OutOfSampleResult(
         features=features,

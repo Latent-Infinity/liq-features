@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
+from liq.features.numpy_utils import to_numpy_float64
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
@@ -57,7 +59,7 @@ def spearman_matrix(
     feature_names = X.columns
     n_features = len(feature_names)
 
-    X_np: NDArray[np.floating] = X.to_numpy()
+    X_np: NDArray[np.floating] = to_numpy_float64(X)
 
     if drop_na:
         # Use pairwise complete observations
@@ -118,7 +120,7 @@ def pearson_matrix(
     """
     feature_names = X.columns
 
-    X_np: NDArray[np.floating] = X.to_numpy()
+    X_np: NDArray[np.floating] = to_numpy_float64(X)
 
     if drop_na:
         mask = ~np.isnan(X_np).any(axis=1)
@@ -199,7 +201,7 @@ def cluster_features(
     feature_names = [c for c in corr_matrix.columns if c != "feature"]
 
     # Convert correlation to distance (1 - abs(corr))
-    corr_values = corr_matrix.select(feature_names).to_numpy()
+    corr_values = to_numpy_float64(corr_matrix.select(feature_names))
     distance_matrix = 1 - np.abs(corr_values)
 
     # Ensure diagonal is 0

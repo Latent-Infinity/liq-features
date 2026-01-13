@@ -13,8 +13,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
+from liq.features.numpy_utils import to_numpy_float64
+
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +42,11 @@ class MRMRResult:
 _FLOAT_EPS = 1e-10
 
 
-def _compute_relevance(X: pl.DataFrame, y: pl.Series) -> pl.DataFrame:
+def _compute_relevance_from_numpy(
+    X_np: "NDArray[np.floating]",
+    y_np: "NDArray[np.floating]",
+    feature_names: list[str],
+) -> pl.DataFrame:
     """Compute relevance (absolute correlation) for each feature vs target.
 
     Uses absolute Pearson correlation as the relevance measure.
@@ -55,12 +62,7 @@ def _compute_relevance(X: pl.DataFrame, y: pl.Series) -> pl.DataFrame:
     Returns:
         DataFrame with columns: feature, relevance
     """
-    feature_names = list(X.columns)
     n_features = len(feature_names)
-
-    # Convert to numpy arrays once
-    X_np = X.to_numpy().astype(np.float64)
-    y_np = y.to_numpy().astype(np.float64)
 
     # Replace inf with NaN for uniform handling
     X_np = np.where(np.isinf(X_np), np.nan, X_np)
@@ -117,7 +119,10 @@ def _compute_relevance(X: pl.DataFrame, y: pl.Series) -> pl.DataFrame:
     })
 
 
-def _compute_correlation_matrix(X: pl.DataFrame, features: list[str]) -> dict[tuple[str, str], float]:
+def _compute_correlation_matrix_from_numpy(
+    X_np: "NDArray[np.floating]",
+    features: list[str],
+) -> dict[tuple[str, str], float]:
     """Compute pairwise Pearson correlations for feature redundancy.
 
     Uses vectorized NumPy operations for efficiency.
@@ -136,10 +141,6 @@ def _compute_correlation_matrix(X: pl.DataFrame, features: list[str]) -> dict[tu
 
     if n_features < 2:
         return corr_cache
-
-    # Convert to numpy once for efficient computation
-    X_subset = X.select(features)
-    X_np = X_subset.to_numpy().astype(np.float64)
 
     # Check for problematic values (NaN or inf)
     has_nan = np.isnan(X_np).any()
@@ -341,18 +342,22 @@ def mrmr_select(
             )
         return []
 
+    # Convert to numpy once for relevance + redundancy calculations
+    X_np = to_numpy_float64(X)
+    y_np = to_numpy_float64(y)
+
     # Step 1: Compute relevance (absolute correlation) for all features
     if show_progress:
         logger.info("Computing feature relevance...")
 
-    relevance_df = _compute_relevance(X, y)
+    relevance_df = _compute_relevance_from_numpy(X_np, y_np, feature_list)
     relevance = dict(zip(relevance_df["feature"].to_list(), relevance_df["relevance"].to_list()))
 
     # Step 2: Compute correlation matrix for redundancy
     if show_progress:
         logger.info("Computing feature correlations...")
 
-    corr_cache = _compute_correlation_matrix(X, feature_list)
+    corr_cache = _compute_correlation_matrix_from_numpy(X_np, feature_list)
 
     # Step 3: Greedy mRMR selection
     if show_progress:

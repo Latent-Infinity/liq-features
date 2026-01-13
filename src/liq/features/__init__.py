@@ -38,6 +38,21 @@ Example:
 
 from liq.features.aggregation import Aggregator, aggregate_to_timeframe
 from liq.features.batch import cache_stats, compute_indicators
+from liq.features.cache import CacheManager, IndicatorCache
+from liq.features.cache_exceptions import (
+    CacheCleanupError,
+    CacheConfigurationError,
+    CacheCorruptionError,
+    CacheError,
+    CacheNotFoundError,
+)
+from liq.features.cache_models import (
+    CacheEntry,
+    CacheFilter,
+    CacheStats,
+    CleanupCriteria,
+    CleanupResult,
+)
 from liq.features.derived import (
     DEFAULT_FIBONACCI_WINDOWS,
     compute_derived_fields,
@@ -61,6 +76,20 @@ from liq.features.store import FeatureStore
 from liq.features.selection import mrmr_select, mutual_info_scores, spearman_matrix
 
 __all__ = [
+    # Cache management
+    "CacheManager",
+    "IndicatorCache",
+    "CacheEntry",
+    "CacheFilter",
+    "CacheStats",
+    "CleanupCriteria",
+    "CleanupResult",
+    # Cache exceptions
+    "CacheError",
+    "CacheNotFoundError",
+    "CacheCorruptionError",
+    "CacheCleanupError",
+    "CacheConfigurationError",
     # Derived features
     "compute_derived_fields",
     "compute_returns",

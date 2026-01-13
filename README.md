@@ -186,9 +186,24 @@ python -m liq.features.cli compute \
     --provider oanda --symbol EUR_USD --timeframe 1m \
     --store-root /data/features --feature-name derived_midrange
 
-# Inspect/clear indicator cache
-python -m liq.features.cli indicator-cache --cache-dir /tmp/cache
-python -m liq.features.cli indicator-cache --cache-dir /tmp/cache --clear
+# Inspect/clear indicator cache (uses LIQ_DATA_ROOT for storage)
+python -m liq.features.cli stats
+python -m liq.features.cli query --symbol EUR_USD --timeframe 1m --indicator sar*
+python -m liq.features.cli clear --all
+
+# Rebuild index (useful after large parallel runs)
+python -m liq.features.cli rebuild-index
+
+# Lockless mode (default): disable index writes during runs, rebuild after
+LIQ_FEATURES_INDEX=off python -m liq.experiments.indicator_ranking run ...
+python -m liq.features.cli rebuild-index
+
+# Pit-of-success pattern (recommended)
+# - Run lockless (default) to avoid contention in parallel workers
+# - Index rebuild is automatic at the end of indicator_ranking runs
+# - For other pipelines, rebuild manually when needed
+python -m liq.experiments.indicator_ranking run ...
+python -m liq.features.cli rebuild-index
 
 # Validate feature set definition (JSON)
 python -m liq.features.cli validate path/to/feature_set.json

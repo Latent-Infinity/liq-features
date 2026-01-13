@@ -17,10 +17,18 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from liq.features.validation.logging_config import (
+    get_logger,
+    log_function_entry,
+    log_function_exit,
+    log_result,
+)
 from liq.features.validation.results import EffectSizeResult
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+logger = get_logger("effect_size")
 
 
 def pooled_std(
@@ -88,6 +96,8 @@ def cohens_d(
     n1 = len(group1)
     n2 = len(group2)
 
+    log_function_entry(logger, "cohens_d", n1=n1, n2=n2)
+
     if n1 < 2 or n2 < 2:
         raise ValueError(
             f"Each group must have at least 2 samples for sample size "
@@ -105,7 +115,12 @@ def cohens_d(
     mean1 = np.mean(group1)
     mean2 = np.mean(group2)
 
-    return float((mean1 - mean2) / pstd)
+    d = float((mean1 - mean2) / pstd)
+
+    log_result(logger, "Effect size computed", cohens_d=f"{d:.4f}")
+    log_function_exit(logger, "cohens_d", f"d={d:.4f}")
+
+    return d
 
 
 def cohens_d_ci(
@@ -137,25 +152,34 @@ def cohens_d_ci(
     group1 = np.asarray(group1)
     group2 = np.asarray(group2)
 
+    n1 = len(group1)
+    n2 = len(group2)
+
+    log_function_entry(
+        logger, "cohens_d_ci",
+        n1=n1, n2=n2, n_bootstrap=n_bootstrap, confidence_level=confidence_level,
+    )
+
+    logger.info(f"Computing Cohen's d with {n_bootstrap} bootstrap iterations")
+
     # Point estimate
     d = cohens_d(group1, group2)
     pstd = pooled_std(group1, group2)
     mean_diff = float(np.mean(group1) - np.mean(group2))
 
-    n1 = len(group1)
-    n2 = len(group2)
-
-    # Bootstrap
+    # Bootstrap with pre-generated indices for performance
     rng = np.random.default_rng(random_state)
+
+    # Pre-generate all bootstrap indices at once (vectorized)
+    all_idx1 = rng.integers(0, n1, size=(n_bootstrap, n1))
+    all_idx2 = rng.integers(0, n2, size=(n_bootstrap, n2))
+
     bootstrap_ds = np.empty(n_bootstrap)
 
     for i in range(n_bootstrap):
-        # Resample with replacement
-        idx1 = rng.integers(0, n1, size=n1)
-        idx2 = rng.integers(0, n2, size=n2)
-
-        boot_g1 = group1[idx1]
-        boot_g2 = group2[idx2]
+        # Use pre-generated indices
+        boot_g1 = group1[all_idx1[i]]
+        boot_g2 = group2[all_idx2[i]]
 
         # Check for zero variance in bootstrap sample
         boot_pstd = pooled_std(boot_g1, boot_g2)
@@ -173,6 +197,13 @@ def cohens_d_ci(
 
     # Interpretation
     interpretation = EffectSizeResult.interpret_cohens_d(d)
+
+    log_result(
+        logger, "Bootstrap CI computed",
+        d=f"{d:.4f}", ci=f"[{ci_lower:.4f}, {ci_upper:.4f}]",
+        interpretation=interpretation,
+    )
+    log_function_exit(logger, "cohens_d_ci", f"d={d:.4f}, {interpretation}")
 
     return EffectSizeResult(
         cohens_d=d,

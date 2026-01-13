@@ -288,6 +288,15 @@ PROBLEMATIC_INDICATORS: set[str] = {
     "mavp",     # Requires periods array input which we don't support
 }
 
+# Indicators that return raw price values (not normalized/stationary)
+# These create spuriously high MI because price level correlates with volatility
+# Use the *index variants instead (minindex, maxindex, minmaxindex) which return bar indices
+RAW_PRICE_INDICATORS: set[str] = {
+    "min",      # Returns min price over period - use minindex instead
+    "max",      # Returns max price over period - use maxindex instead
+    "minmax",   # Returns (min, max) prices - use minmaxindex instead
+}
+
 # Default period variations for auto-generated grids (Fibonacci-based)
 PERIOD_VARIATIONS: list[int] = [5, 8, 13, 21, 34, 55]
 FAST_PERIOD_VARIATIONS: list[int] = [3, 5, 8, 13]
@@ -303,8 +312,56 @@ SLOW_PERIOD_VARIATIONS_EXTENDED: list[int] = [13, 21, 34, 55, 89, 144, 233, 377,
 # Based on empirical analysis: 5 catches top performers (minindex), 8 catches natr,
 # 21 is middle ground, 55 is better than 89 for MAs/bbands
 PERIOD_VARIATIONS_COARSE: list[int] = [5, 8, 21, 55]
-FAST_PERIOD_VARIATIONS_COARSE: list[int] = [5, 8]
-SLOW_PERIOD_VARIATIONS_COARSE: list[int] = [21, 55]
+
+# Fast/slow period variations for multi-parameter indicators (MACD, PPO, etc.)
+# Expanded to cover all valid Fibonacci pairs from [5, 8, 21, 55] where fast < slow:
+# (5,8), (5,21), (5,55), (8,21), (8,55), (21,55) = 6 combinations
+# Invalid pairs (fast >= slow) are filtered at indicator compute time
+FAST_PERIOD_VARIATIONS_COARSE: list[int] = [5, 8, 21]
+SLOW_PERIOD_VARIATIONS_COARSE: list[int] = [8, 21, 55]
+
+
+def generate_fibonacci_period_pairs(
+    periods: list[int] | None = None,
+    *,
+    use_coarse: bool = False,
+    use_extended: bool = False,
+) -> list[tuple[int, int]]:
+    """Generate all valid (fast, slow) period pairs where fast < slow.
+
+    Creates constrained Fibonacci pairs for multi-parameter indicators
+    like MACD, PPO, ADOSC that require fast < slow.
+
+    Args:
+        periods: Custom period list to generate pairs from.
+        use_coarse: If True, use coarse periods [5, 8, 21, 55].
+        use_extended: If True, use extended Fibonacci periods.
+
+    Returns:
+        List of (fast, slow) tuples where fast < slow.
+
+    Example:
+        >>> generate_fibonacci_period_pairs(use_coarse=True)
+        [(5, 8), (5, 21), (5, 55), (8, 21), (8, 55), (21, 55)]
+        >>> generate_fibonacci_period_pairs(periods=[3, 5, 8, 13])
+        [(3, 5), (3, 8), (3, 13), (5, 8), (5, 13), (8, 13)]
+    """
+    if periods is not None:
+        base_periods = periods
+    elif use_coarse:
+        base_periods = PERIOD_VARIATIONS_COARSE
+    elif use_extended:
+        base_periods = PERIOD_VARIATIONS_EXTENDED
+    else:
+        base_periods = PERIOD_VARIATIONS
+
+    # Generate all pairs where fast < slow
+    pairs = []
+    for i, fast in enumerate(base_periods):
+        for slow in base_periods[i + 1:]:
+            pairs.append((fast, slow))
+
+    return pairs
 
 
 def auto_generate_param_grid(
@@ -488,7 +545,11 @@ def generate_talib_param_grids(
     single_price_indicators: set[str] = set()
 
     # Determine which indicators to exclude
-    excluded_inds = exclude_indicators if exclude_indicators is not None else PROBLEMATIC_INDICATORS
+    # Always exclude PROBLEMATIC_INDICATORS and RAW_PRICE_INDICATORS by default
+    if exclude_indicators is not None:
+        excluded_inds = exclude_indicators
+    else:
+        excluded_inds = PROBLEMATIC_INDICATORS | RAW_PRICE_INDICATORS
 
     for ind in indicators:
         name = ind["name"]
@@ -499,7 +560,7 @@ def generate_talib_param_grids(
         if group in excluded:
             continue
 
-        # Skip problematic indicators
+        # Skip problematic/raw-price indicators
         if name in excluded_inds:
             continue
 

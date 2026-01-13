@@ -9,6 +9,12 @@ from liq.features.indicators import (
     enumerate_with_params,
     get_param_grid,
 )
+from liq.features.indicators.param_grids import (
+    FAST_PERIOD_VARIATIONS_COARSE,
+    PERIOD_VARIATIONS_COARSE,
+    SLOW_PERIOD_VARIATIONS_COARSE,
+    generate_fibonacci_period_pairs,
+)
 
 
 class TestIndicatorSpec:
@@ -190,3 +196,88 @@ class TestDefaultParamGrids:
         for name, grid in DEFAULT_PARAM_GRIDS.items():
             for param_name, values in grid.items():
                 assert isinstance(values, list), f"{name}.{param_name} is not a list"
+
+
+class TestGenerateFibonacciPeriodPairs:
+    """Tests for generate_fibonacci_period_pairs function."""
+
+    def test_coarse_pairs(self) -> None:
+        """Test coarse mode generates expected pairs."""
+        pairs = generate_fibonacci_period_pairs(use_coarse=True)
+
+        # Should have 6 pairs from [5, 8, 21, 55]
+        expected = [(5, 8), (5, 21), (5, 55), (8, 21), (8, 55), (21, 55)]
+        assert pairs == expected
+
+    def test_all_pairs_have_fast_less_than_slow(self) -> None:
+        """Test all pairs satisfy fast < slow constraint."""
+        pairs = generate_fibonacci_period_pairs(use_coarse=True)
+
+        for fast, slow in pairs:
+            assert fast < slow, f"Invalid pair: {fast} >= {slow}"
+
+    def test_custom_periods(self) -> None:
+        """Test with custom period list."""
+        pairs = generate_fibonacci_period_pairs(periods=[3, 5, 8, 13])
+
+        expected = [(3, 5), (3, 8), (3, 13), (5, 8), (5, 13), (8, 13)]
+        assert pairs == expected
+
+    def test_empty_periods(self) -> None:
+        """Test with empty or single period list."""
+        pairs = generate_fibonacci_period_pairs(periods=[5])
+        assert pairs == []
+
+        pairs = generate_fibonacci_period_pairs(periods=[])
+        assert pairs == []
+
+    def test_two_periods(self) -> None:
+        """Test with exactly two periods."""
+        pairs = generate_fibonacci_period_pairs(periods=[5, 21])
+        assert pairs == [(5, 21)]
+
+    def test_extended_mode(self) -> None:
+        """Test extended mode produces valid pairs."""
+        pairs = generate_fibonacci_period_pairs(use_extended=True)
+
+        # Should have many pairs
+        assert len(pairs) > 50
+
+        # All should satisfy constraint
+        for fast, slow in pairs:
+            assert fast < slow
+
+
+class TestCoarsePeriodVariations:
+    """Tests for coarse period variation constants."""
+
+    def test_coarse_periods_are_fibonacci(self) -> None:
+        """Test coarse periods are from Fibonacci sequence."""
+        fibonacci = {2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233}
+
+        for period in PERIOD_VARIATIONS_COARSE:
+            assert period in fibonacci, f"{period} is not a Fibonacci number"
+
+    def test_fast_slow_cover_all_valid_pairs(self) -> None:
+        """Test FAST and SLOW variations can generate all coarse pairs."""
+        # Generate pairs from FAST x SLOW Cartesian product
+        cartesian_pairs = [
+            (fast, slow)
+            for fast in FAST_PERIOD_VARIATIONS_COARSE
+            for slow in SLOW_PERIOD_VARIATIONS_COARSE
+            if fast < slow
+        ]
+
+        # Generate pairs using the helper function
+        fibonacci_pairs = generate_fibonacci_period_pairs(use_coarse=True)
+
+        # Cartesian should cover all Fibonacci pairs
+        assert set(cartesian_pairs) == set(fibonacci_pairs)
+
+    def test_fast_variations_coarse(self) -> None:
+        """Test FAST_PERIOD_VARIATIONS_COARSE values."""
+        assert FAST_PERIOD_VARIATIONS_COARSE == [5, 8, 21]
+
+    def test_slow_variations_coarse(self) -> None:
+        """Test SLOW_PERIOD_VARIATIONS_COARSE values."""
+        assert SLOW_PERIOD_VARIATIONS_COARSE == [8, 21, 55]

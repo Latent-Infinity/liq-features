@@ -16,10 +16,22 @@ from scipy.stats import spearmanr
 from sklearn.feature_selection import mutual_info_regression
 
 from liq.features.validation.exceptions import ConfigurationError
+from liq.features.validation.logging_config import (
+    get_logger,
+    log_function_entry,
+    log_function_exit,
+    log_result,
+    log_warning,
+)
 from liq.features.validation.results import SensitivityResult
 
 if TYPE_CHECKING:
     import polars as pl
+
+logger = get_logger("sensitivity")
+
+# Minimum sample size for reliable MI estimation
+MIN_SAMPLES_WARNING = 50
 
 
 def mi_sensitivity_analysis(
@@ -51,6 +63,11 @@ def mi_sensitivity_analysis(
     if k_values is None:
         k_values = [1, 3, 5, 7]
 
+    log_function_entry(
+        logger, "mi_sensitivity_analysis",
+        feature=feature, k_values=k_values,
+    )
+
     # Validate k values
     for k in k_values:
         if k < 1:
@@ -74,6 +91,16 @@ def mi_sensitivity_analysis(
     x_valid = x_col[valid_mask].reshape(-1, 1)
     y_valid = y_arr[valid_mask]
 
+    n_valid = len(y_valid)
+    if n_valid < MIN_SAMPLES_WARNING:
+        log_warning(
+            logger,
+            "Small sample size may affect MI estimation reliability",
+            n_samples=n_valid, min_recommended=MIN_SAMPLES_WARNING,
+        )
+
+    logger.debug(f"Computing MI at k values {k_values} for feature '{feature}'")
+
     # Compute MI at each k value
     mi_values = []
     for k in k_values:
@@ -93,6 +120,12 @@ def mi_sensitivity_analysis(
     # For single feature, rank is always 1 at each k
     rank_at_each = [1] * len(k_values)
     rank_correlation = 1.0  # Perfect correlation for single feature
+
+    log_result(
+        logger, f"Sensitivity analysis complete for '{feature}'",
+        mean_mi=f"{mean_mi:.4f}", cv=f"{cv_mi:.4f}",
+    )
+    log_function_exit(logger, "mi_sensitivity_analysis", f"mean_mi={mean_mi:.4f}")
 
     return SensitivityResult(
         feature=feature,

@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import polars as pl
+
+from liq.features.numpy_utils import to_numpy_float64
 from numpy.typing import NDArray
 from sklearn.feature_selection import mutual_info_regression
 
@@ -118,8 +120,8 @@ def bootstrap_mi(
         raise ValueError(f"Feature '{feature}' not found in DataFrame")
 
     # Convert to numpy
-    x_arr = X[feature].to_numpy().astype(np.float64)
-    y_arr = y.to_numpy().astype(np.float64)
+    x_arr = to_numpy_float64(X[feature])
+    y_arr = to_numpy_float64(y)
 
     # Get valid indices
     valid_mask = _get_valid_mask(x_arr, y_arr)
@@ -207,8 +209,8 @@ def permutation_test_mi(
         raise ValueError(f"Feature '{feature}' not found in DataFrame")
 
     # Convert to numpy
-    x_arr = X[feature].to_numpy().astype(np.float64)
-    y_arr = y.to_numpy().astype(np.float64)
+    x_arr = to_numpy_float64(X[feature])
+    y_arr = to_numpy_float64(y)
 
     # Get valid indices
     valid_mask = _get_valid_mask(x_arr, y_arr)
@@ -292,9 +294,9 @@ def paired_bootstrap_difference(
         raise ValueError(f"Feature '{feature}' not found in DataFrame")
 
     # Convert to numpy
-    x_arr = X[feature].to_numpy().astype(np.float64)
-    y_close_arr = y_close.to_numpy().astype(np.float64)
-    y_midrange_arr = y_midrange.to_numpy().astype(np.float64)
+    x_arr = to_numpy_float64(X[feature])
+    y_close_arr = to_numpy_float64(y_close)
+    y_midrange_arr = to_numpy_float64(y_midrange)
 
     # Get valid indices (must be valid for all three arrays)
     valid_mask = (

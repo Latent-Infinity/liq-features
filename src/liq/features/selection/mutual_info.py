@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
+from liq.features.numpy_utils import to_numpy_float64
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -66,8 +68,8 @@ def mutual_info_scores(
     feature_names = X.columns
 
     # Convert to numpy, handling NaN values
-    X_np: NDArray[np.floating] = X.to_numpy()
-    y_np: NDArray[np.floating] = y.to_numpy()
+    X_np: NDArray[np.floating] = to_numpy_float64(X)
+    y_np: NDArray[np.floating] = to_numpy_float64(y)
 
     if drop_na:
         # Create mask for rows without NaN in either X or y
@@ -96,6 +98,32 @@ def mutual_info_scores(
     }).sort("mi_score", descending=True)
 
     return result
+
+
+def _add_jitter(
+    x: "NDArray[np.floating]",
+    rng: np.random.Generator,
+    jitter_scale: float = 1e-10,
+) -> "NDArray[np.floating]":
+    """Add small random noise to break ties in discretized data.
+
+    The KNN-based MI estimator can produce inflated scores when many samples
+    have identical feature values (common in forex data with pip precision).
+    Adding tiny jitter breaks these ties without significantly affecting MI.
+
+    Args:
+        x: Feature array.
+        rng: Numpy random generator.
+        jitter_scale: Scale of noise relative to data range (default 1e-10).
+
+    Returns:
+        Array with small random noise added.
+    """
+    x_range = np.ptp(x)  # max - min
+    if x_range == 0:
+        x_range = np.abs(x.mean()) if x.mean() != 0 else 1.0
+    noise = rng.uniform(-1, 1, size=x.shape) * x_range * jitter_scale
+    return x + noise
 
 
 def _compute_mi_single_feature_from_array(
@@ -134,7 +162,7 @@ def _compute_mi_single_feature_from_array(
         ~np.isnan(x_col) & ~np.isnan(y_np) &
         ~np.isinf(x_col) & ~np.isinf(y_np)
     )
-    x_valid = x_col[mask]
+    x_valid = x_col[mask].copy()  # Copy needed for jitter
     y_valid = y_np[mask]
 
     n_samples = len(x_valid)
@@ -145,6 +173,11 @@ def _compute_mi_single_feature_from_array(
             "mi_score": np.nan,
             "n_samples": n_samples,
         }
+
+    # Add jitter to break ties in discretized data (forex pip precision, etc.)
+    # Use deterministic seed based on column index for reproducibility
+    rng = np.random.default_rng(seed=(random_state or 0) + col_idx)
+    x_valid = _add_jitter(x_valid, rng)
 
     try:
         mi_score = mutual_info_regression(
@@ -211,8 +244,8 @@ def mutual_info_scores_per_feature(
     # Convert to numpy ONCE upfront - shared across all threads
     # This is the key memory optimization: ~12GB for 104k x 14k instead of
     # duplicating per process
-    X_np: NDArray[np.floating] = X.to_numpy()
-    y_np: NDArray[np.floating] = y.to_numpy()
+    X_np: NDArray[np.floating] = to_numpy_float64(X)
+    y_np: NDArray[np.floating] = to_numpy_float64(y)
 
     n_features = len(feature_names)
 
@@ -227,14 +260,13 @@ def mutual_info_scores_per_feature(
             if progress_callback:
                 progress_callback(col_idx + 1, n_features)
     else:
-        # Parallel execution using ThreadPoolExecutor
+        # Parallel execution using sklearn's Parallel to propagate configuration
         # Threads share memory (unlike processes), so X_np and y_np aren't duplicated
-        results = []
-        completed = 0
-        with ThreadPoolExecutor(max_workers=n_jobs) as executor:
-            futures = {
-                executor.submit(
-                    _compute_mi_single_feature_from_array,
+        from sklearn.utils.parallel import Parallel, delayed
+
+        def _safe_compute(col_idx: int, col_name: str) -> dict:
+            try:
+                return _compute_mi_single_feature_from_array(
                     col_idx,
                     col_name,
                     X_np,
@@ -242,24 +274,26 @@ def mutual_info_scores_per_feature(
                     n_neighbors,
                     random_state,
                     min_samples,
-                ): col_name
-                for col_idx, col_name in enumerate(feature_names)
-            }
+                )
+            except Exception:
+                return {
+                    "feature": col_name,
+                    "mi_score": np.nan,
+                    "n_samples": 0,
+                }
 
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    results.append(result)
-                except Exception:
-                    col_name = futures[future]
-                    results.append({
-                        "feature": col_name,
-                        "mi_score": np.nan,
-                        "n_samples": 0,
-                    })
-                completed += 1
-                if progress_callback and completed % 100 == 0:  # Update every 100 features
-                    progress_callback(completed, n_features)
+        results = []
+        completed = 0
+        parallel = Parallel(n_jobs=n_jobs, prefer="threads", return_as="generator")
+        generator = parallel(
+            delayed(_safe_compute)(col_idx, col_name)
+            for col_idx, col_name in enumerate(feature_names)
+        )
+        for result in generator:
+            results.append(result)
+            completed += 1
+            if progress_callback and completed % 100 == 0:
+                progress_callback(completed, n_features)
 
     result = pl.DataFrame(results)
 
@@ -298,7 +332,7 @@ def mutual_info_matrix(
     feature_names = X.columns
     n_features = len(feature_names)
 
-    X_np: NDArray[np.floating] = X.to_numpy()
+    X_np: NDArray[np.floating] = to_numpy_float64(X)
 
     if drop_na:
         mask = ~np.isnan(X_np).any(axis=1)

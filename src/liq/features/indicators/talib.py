@@ -69,6 +69,8 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
+import threading
+import weakref
 
 import numpy as np
 
@@ -89,6 +91,7 @@ except ImportError:
     pl = None  # type: ignore[assignment]
 
 from liq.features.indicators.base import BaseIndicator
+from liq.features.numpy_utils import to_numpy_float64
 
 
 def _check_talib() -> None:
@@ -185,8 +188,38 @@ def _to_float64(arr: "NDArray[Any]") -> "NDArray[np.floating[Any]]":
         Float64 numpy array.
     """
     if arr.dtype != np.float64:
-        return arr.astype(np.float64)
+        return arr.astype(np.float64, copy=False)
     return arr
+
+
+_TALIB_INPUT_CACHE: dict[int, dict[str, "NDArray[np.floating[Any]]"]] = {}
+_TALIB_FINALIZERS: dict[int, weakref.finalize] = {}
+_TALIB_CACHE_LOCK = threading.Lock()
+
+
+def _get_column_cache(
+    df: "pl.DataFrame",
+) -> dict[str, "NDArray[np.floating[Any]]"]:
+    """Return a per-DataFrame cache for TA-Lib input arrays."""
+    key = id(df)
+    with _TALIB_CACHE_LOCK:
+        cached = _TALIB_INPUT_CACHE.get(key)
+        if cached is not None:
+            return cached
+        cache: dict[str, "NDArray[np.floating[Any]]"] = {}
+        _TALIB_INPUT_CACHE[key] = cache
+        _TALIB_FINALIZERS[key] = weakref.finalize(
+            df,
+            _purge_talib_cache,
+            key,
+        )
+        return cache
+
+
+def _purge_talib_cache(key: int) -> None:
+    with _TALIB_CACHE_LOCK:
+        _TALIB_INPUT_CACHE.pop(key, None)
+        _TALIB_FINALIZERS.pop(key, None)
 
 
 def map_inputs(
@@ -222,6 +255,16 @@ def map_inputs(
         dict_keys(['high', 'low', 'close', 'volume'])
     """
     inputs: dict[str, NDArray[np.floating[Any]]] = {}
+    column_cache = _get_column_cache(df)
+
+    def _get_col_array(col_name: str) -> "NDArray[np.floating[Any]]":
+        cached = column_cache.get(col_name)
+        if cached is not None:
+            return cached
+        arr = to_numpy_float64(df[col_name], allow_copy=False)
+        with _TALIB_CACHE_LOCK:
+            column_cache.setdefault(col_name, arr)
+        return arr
 
     for input_key, input_spec in input_names.items():
         input_key_lower = input_key.lower()
@@ -234,7 +277,7 @@ def map_inputs(
                 for col in input_spec:
                     col_lower = col.lower()
                     if col_lower in df.columns:
-                        inputs[col_lower] = _to_float64(df[col_lower].to_numpy())
+                        inputs[col_lower] = _to_float64(_get_col_array(col_lower))
                     else:
                         raise ValueError(
                             f"Indicator {indicator_name} requires '{col_lower}' column, "
@@ -244,32 +287,32 @@ def map_inputs(
                 # Fallback: map standard OHLC (shouldn't happen with well-formed input_names)
                 for col in ["high", "low", "close"]:
                     if col in df.columns:
-                        inputs[col] = _to_float64(df[col].to_numpy())
+                        inputs[col] = _to_float64(_get_col_array(col))
 
         elif input_key_lower == "price":
             # Single price input - use configurable price column
-            inputs["close"] = _to_float64(df[price_column].to_numpy())
+            inputs["close"] = _to_float64(_get_col_array(price_column))
 
         elif input_key_lower in ("real", "real0"):
             # Real value input - use configurable price column
-            inputs["close"] = _to_float64(df[price_column].to_numpy())
+            inputs["close"] = _to_float64(_get_col_array(price_column))
 
         elif input_key_lower == "real1":
             # Second real input - use high if available
             if "high" in df.columns:
-                inputs["high"] = _to_float64(df["high"].to_numpy())
+                inputs["high"] = _to_float64(_get_col_array("high"))
             else:
-                inputs["close"] = _to_float64(df[price_column].to_numpy())
+                inputs["close"] = _to_float64(_get_col_array(price_column))
 
         elif input_key_lower in ("price0", "price1"):
             # Two-input indicators (BETA, CORREL) - input_spec specifies the column
             # e.g., {'price0': 'high', 'price1': 'low'}
             if isinstance(input_spec, str) and input_spec.lower() in df.columns:
                 col = input_spec.lower()
-                inputs[col] = _to_float64(df[col].to_numpy())
+                inputs[col] = _to_float64(_get_col_array(col))
             elif price_column in df.columns:
                 # Fallback to configurable price column
-                inputs[price_column] = _to_float64(df[price_column].to_numpy())
+                inputs[price_column] = _to_float64(_get_col_array(price_column))
             else:
                 raise ValueError(
                     f"Indicator {indicator_name} requires '{input_spec}' column, "
@@ -283,7 +326,7 @@ def map_inputs(
         else:
             # Direct column lookup
             if input_key_lower in df.columns:
-                inputs[input_key_lower] = _to_float64(df[input_key_lower].to_numpy())
+                inputs[input_key_lower] = _to_float64(_get_col_array(input_key_lower))
             else:
                 raise ValueError(
                     f"Indicator {indicator_name} requires '{input_key_lower}' column, "
