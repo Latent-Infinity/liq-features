@@ -61,6 +61,8 @@ from liq.features.derived import (
     compute_rolling_returns,
     compute_volatility,
 )
+from liq.features.forex import build_features as build_forex_features
+from liq.features.forex_labels import make_forex_labels
 from liq.features.feature_set import FeatureDefinition, FeatureSet
 from liq.features.indicators import configure_defaults, reset_defaults
 from liq.features.params import format_params_key, hash_params, normalize_params
@@ -97,6 +99,8 @@ __all__ = [
     "compute_rolling_returns",
     "compute_multi_window_volatility",
     "DEFAULT_FIBONACCI_WINDOWS",
+    "build_forex_features",
+    "make_forex_labels",
     # Aggregation
     "Aggregator",
     "aggregate_to_timeframe",
