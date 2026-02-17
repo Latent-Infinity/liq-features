@@ -5,12 +5,19 @@ A component of the Latent Infinity Quant (LIQ) ecosystem, `liq-features` transfo
 ## Installation
 
 ```bash
-pip install liq-features
+uv venv
+uv pip install -e ".[all]"      # development install, includes optional dependencies
 ```
 
-Optional TA-Lib support (150+ additional indicators):
+Dynamic indicator backend is provided by `liq-ta` (installed by default).
+
+## Development
+
 ```bash
-pip install ta-lib
+uv run pytest                          # run test suite
+uv run ruff check src/ tests/         # lint
+uv run ruff format src/ tests/         # format
+uv run ty check src/                  # static type checks
 ```
 
 ## Input DataFrame Schema
@@ -94,7 +101,7 @@ liq-features provides 160+ technical indicators:
 
 **Volume indicators:** AbnormalTurnover (z-score), NormalizedVolume (ratio to MA)
 
-**Dynamic (via TA-Lib):** All 150+ TA-Lib indicators available through `get_indicator()`
+**Dynamic (via liq-ta):** 100+ additional indicators available through `get_indicator()`
 
 ```python
 from liq.features.indicators import get_indicator, list_indicators
@@ -105,7 +112,7 @@ for ind in indicators[:5]:
     print(f"{ind['name']}: {ind['source']}")
 
 # Get any indicator by name
-CCI = get_indicator("cci")  # TA-Lib indicator
+CCI = get_indicator("cci")  # dynamic liq-ta-backed indicator
 cci = CCI(params={"timeperiod": 20})
 result = cci.compute(df)  # symbol/timeframe optional (used for caching)
 ```
@@ -177,40 +184,40 @@ print(stats)
 
 ```bash
 # Compute features from bars file and store via liq-store
-python -m liq.features.cli compute path/to/bars.parquet \
+uv run python -m liq.features.cli compute path/to/bars.parquet \
     --symbol EUR_USD --timeframe 1m \
     --store-root /data/features --feature-name derived_midrange
 
 # Load bars via liq-data provider instead of file
-python -m liq.features.cli compute \
+uv run python -m liq.features.cli compute \
     --provider oanda --symbol EUR_USD --timeframe 1m \
     --store-root /data/features --feature-name derived_midrange
 
 # Inspect/clear indicator cache (uses LIQ_DATA_ROOT for storage)
-python -m liq.features.cli stats
-python -m liq.features.cli query --symbol EUR_USD --timeframe 1m --indicator sar*
-python -m liq.features.cli clear --all
+uv run python -m liq.features.cli stats
+uv run python -m liq.features.cli query --symbol EUR_USD --timeframe 1m --indicator sar*
+uv run python -m liq.features.cli clear --all
 
 # Rebuild index (useful after large parallel runs)
-python -m liq.features.cli rebuild-index
+uv run python -m liq.features.cli rebuild-index
 
 # Lockless mode (default): disable index writes during runs, rebuild after
-LIQ_FEATURES_INDEX=off python -m liq.experiments.indicator_ranking run ...
-python -m liq.features.cli rebuild-index
+LIQ_FEATURES_INDEX=off uv run python -m liq.experiments.indicator_ranking run ...
+uv run python -m liq.features.cli rebuild-index
 
 # Pit-of-success pattern (recommended)
 # - Run lockless (default) to avoid contention in parallel workers
 # - Index rebuild is automatic at the end of indicator_ranking runs
 # - For other pipelines, rebuild manually when needed
-python -m liq.experiments.indicator_ranking run ...
-python -m liq.features.cli rebuild-index
+uv run python -m liq.experiments.indicator_ranking run ...
+uv run python -m liq.features.cli rebuild-index
 
 # Validate feature set definition (JSON)
-python -m liq.features.cli validate path/to/feature_set.json
+uv run python -m liq.features.cli validate path/to/feature_set.json
 
 # Fit/transform pipelines (stationarity + scaling)
-python -m liq.features.cli fit-pipeline series.parquet --model-type nn --d 0.3 --output pipeline.json
-python -m liq.features.cli transform series.parquet pipeline.json --output transformed.json
+uv run python -m liq.features.cli fit-pipeline series.parquet --model-type nn --d 0.3 --output pipeline.json
+uv run python -m liq.features.cli transform series.parquet pipeline.json --output transformed.json
 ```
 
 ### Pipeline Parameters
@@ -475,13 +482,11 @@ except ValueError as e:
 - `scikit-learn>=1.4` - Feature selection
 
 **Optional:**
-- `ta-lib>=0.4.0` - 150+ additional indicators
 - `xxhash>=3.0.0` - Fast hashing for cache keys
 - `mrmr-selection>=0.2.8` - mRMR feature selection
 
 **Install variants:**
 ```bash
-pip install liq-features              # Core only
-pip install liq-features[talib]       # + TA-Lib indicators
-pip install liq-features[all]         # All optional dependencies
+uv pip install -e .                   # Core only
+uv pip install -e ".[all]"            # Core + optional extras
 ```

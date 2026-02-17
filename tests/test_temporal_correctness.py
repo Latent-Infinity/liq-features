@@ -5,14 +5,13 @@ Following TDD: Tests verify no future data leakage in features.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import polars as pl
 import pytest
 
 from liq.features.alignment import align_higher_timeframe
-from liq.features.derived import compute_derived_fields, compute_returns, compute_volatility
-from liq.features.indicators import get_indicator
+from liq.features.derived import compute_derived_fields, compute_returns
 from liq.features.labels import TripleBarrierConfig, triple_barrier_labels
 
 
@@ -25,7 +24,7 @@ class TestIndicatorNoLookahead:
 
         base_price = 100.0
         timestamps = [
-            datetime(2024, 1, 1, i // 24, i % 24, tzinfo=timezone.utc)
+            datetime(2024, 1, 1, i // 24, i % 24, tzinfo=UTC)
             for i in range(n_rows)
         ]
 
@@ -64,7 +63,7 @@ class TestIndicatorNoLookahead:
         """EMA at time t should only use data from t and before."""
         df = self._make_ohlc_df(50)
 
-        # Import directly to avoid talib wrapper issues
+        # Import directly to avoid dynamic wrapper issues
         from liq.features.indicators.trend import EMA
 
         ema = EMA(params={"period": 5})
@@ -81,7 +80,7 @@ class TestIndicatorNoLookahead:
         """RSI at time t should only use data from t and before."""
         df = self._make_ohlc_df(50)
 
-        # Import directly to avoid talib wrapper issues
+        # Import directly to avoid dynamic wrapper issues
         from liq.features.indicators.momentum import RSI
 
         rsi = RSI(params={"period": 5})
@@ -99,7 +98,7 @@ class TestIndicatorNoLookahead:
         # Simple case with known values
         df = pl.DataFrame({
             "ts": [
-                datetime(2024, 1, i, tzinfo=timezone.utc)
+                datetime(2024, 1, i, tzinfo=UTC)
                 for i in range(1, 6)
             ],
             "open": [10.0, 20.0, 30.0, 40.0, 50.0],
@@ -168,10 +167,10 @@ class TestAlignmentNoLookahead:
         # Base 1-min bars
         base = pl.DataFrame({
             "timestamp": [
-                datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
-                datetime(2024, 1, 1, 0, 2, tzinfo=timezone.utc),
-                datetime(2024, 1, 1, 0, 3, tzinfo=timezone.utc),
-                datetime(2024, 1, 1, 0, 6, tzinfo=timezone.utc),  # After second higher bar
+                datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
+                datetime(2024, 1, 1, 0, 3, tzinfo=UTC),
+                datetime(2024, 1, 1, 0, 6, tzinfo=UTC),  # After second higher bar
             ],
             "value": [1, 2, 3, 4],
         })
@@ -179,8 +178,8 @@ class TestAlignmentNoLookahead:
         # Higher-TF 5-min bars
         higher = pl.DataFrame({
             "timestamp": [
-                datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc),  # 00:00 bar
-                datetime(2024, 1, 1, 0, 5, tzinfo=timezone.utc),  # 00:05 bar
+                datetime(2024, 1, 1, 0, 0, tzinfo=UTC),  # 00:00 bar
+                datetime(2024, 1, 1, 0, 5, tzinfo=UTC),  # 00:05 bar
             ],
             "htf_value": [100, 200],
         })
@@ -199,8 +198,8 @@ class TestAlignmentNoLookahead:
         """Base bars should never receive future higher-TF data."""
         base = pl.DataFrame({
             "timestamp": [
-                datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
-                datetime(2024, 1, 1, 0, 2, tzinfo=timezone.utc),
+                datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
             ],
             "value": [1, 2],
         })
@@ -208,7 +207,7 @@ class TestAlignmentNoLookahead:
         # Higher TF bar is in the future relative to all base bars
         higher = pl.DataFrame({
             "timestamp": [
-                datetime(2024, 1, 1, 0, 10, tzinfo=timezone.utc),  # Future!
+                datetime(2024, 1, 1, 0, 10, tzinfo=UTC),  # Future!
             ],
             "htf_value": [999],
         })

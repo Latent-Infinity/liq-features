@@ -1,6 +1,6 @@
 """Tests for liq.features.indicators module."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import polars as pl
@@ -45,8 +45,8 @@ class TestBaseIndicator:
 
         df = pl.DataFrame({
             "ts": [
-                datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc),
-                datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
+                datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
+                datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
             ],
             "close": [1.0, 1.1],
             "midrange": [2.0, 2.1],
@@ -98,14 +98,14 @@ class TestIndicatorRegistry:
         assert "ema" in names
         assert "macd" in names
 
-    def test_list_indicators_merges_talib_when_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Simulate TA-Lib availability and ensure merged listing."""
-        from liq.features.indicators import talib as talib_mod
+    def test_list_indicators_merges_dynamic_backend_when_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Simulate dynamic backend availability and ensure merged listing."""
+        from liq.features.indicators import liq_ta as liq_ta_mod
         from liq.features.indicators import registry
 
-        monkeypatch.setattr(talib_mod, "list_dynamic_indicators", lambda: [
+        monkeypatch.setattr(liq_ta_mod, "list_dynamic_indicators", lambda: [
             {
-                "name": "talib_dummy",
+                "name": "ta_dummy",
                 "display_name": "TA Dummy",
                 "parameters": {"timeperiod": 10},
             }
@@ -116,8 +116,8 @@ class TestIndicatorRegistry:
         sources = {ind["name"]: ind.get("source") for ind in indicators}
 
         assert "rsi" in names  # hardcoded baseline
-        assert "talib_dummy" in names
-        assert sources.get("talib_dummy") == "talib"
+        assert "ta_dummy" in names
+        assert sources.get("ta_dummy") == "liq_ta"
 
 
 class TestRSI:

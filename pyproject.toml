@@ -26,6 +26,7 @@ dependencies = [
     "numpy>=2.0",
     "typer>=0.15",
     "rich>=13.9",
+    "liq-ta>=0.1.0",
     "liq-data>=0.1.0",
     "liq-store>=0.1.0",
     "scikit-learn>=1.4",
@@ -36,9 +37,6 @@ dependencies = [
 liq-features = "liq.features.cli:app"
 
 [project.optional-dependencies]
-talib = [
-    "ta-lib>=0.4.0",
-]
 xxhash = [
     "xxhash>=3.0.0",
 ]
@@ -46,7 +44,6 @@ selection = [
     "mrmr-selection>=0.2.8",
 ]
 all = [
-    "ta-lib>=0.4.0",
     "xxhash>=3.0.0",
     "mrmr-selection>=0.2.8",
 ]
@@ -55,7 +52,8 @@ dev = [
     "pytest-cov>=6.0",
     "hypothesis>=6.120",
     "ruff>=0.14",
-    "mypy>=1.13",
+    "ty>=0.0.1",
+    "pre-commit>=4.0",
 ]
 
 [project.urls]
@@ -109,8 +107,7 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["liq"]
 
-[tool.mypy]
-python_version = "3.12"
-strict = true
-warn_return_any = true
-warn_unused_ignores = true
+[tool.ty.environment]
+extra-paths = ["./src"]
+
+[tool.ty.rules]

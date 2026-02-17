@@ -1,7 +1,7 @@
 """Indicator registry for discovering and instantiating indicators.
 
 This module provides a central registry for looking up indicator classes
-by name, combining hardcoded indicators with optional dynamic TA-Lib fallback.
+by name, combining hardcoded indicators with optional dynamic liq-ta fallback.
 
 Design Principles:
     - SRP: Only handles indicator discovery and instantiation
@@ -52,7 +52,7 @@ def register_indicator(cls: type[BaseIndicator]) -> type[BaseIndicator]:
 def get_indicator(name: str) -> type[BaseIndicator]:
     """Get an indicator class by name.
 
-    First checks hardcoded indicators, then falls back to dynamic TA-Lib
+    First checks hardcoded indicators, then falls back to dynamic liq-ta
     indicators if available.
 
     Args:
@@ -74,9 +74,9 @@ def get_indicator(name: str) -> type[BaseIndicator]:
     if name_lower in _HARDCODED_INDICATORS:
         return _HARDCODED_INDICATORS[name_lower]
 
-    # Try dynamic TA-Lib fallback
+    # Try dynamic liq-ta fallback
     try:
-        from liq.features.indicators.talib import get_dynamic_indicator
+        from liq.features.indicators.liq_ta import get_dynamic_indicator
 
         return get_dynamic_indicator(name)
     except ImportError:
@@ -101,7 +101,7 @@ def list_indicators() -> list[dict[str, Any]]:
         - name: Indicator code name
         - display_name: Human-readable name
         - default_params: Default parameters
-        - source: "hardcoded" or "talib"
+        - source: "hardcoded" or "liq_ta"
 
     Example:
         >>> indicators = list_indicators()
@@ -121,9 +121,9 @@ def list_indicators() -> list[dict[str, Any]]:
             }
         )
 
-    # Add dynamic TA-Lib indicators if available
+    # Add dynamic liq-ta indicators if available
     try:
-        from liq.features.indicators.talib import list_dynamic_indicators
+        from liq.features.indicators.liq_ta import list_dynamic_indicators
 
         for info in list_dynamic_indicators():
             # Skip if already in hardcoded
@@ -133,7 +133,7 @@ def list_indicators() -> list[dict[str, Any]]:
                         "name": info["name"],
                         "display_name": info["display_name"],
                         "default_params": info["parameters"],
-                        "source": "talib",
+                        "source": "liq_ta",
                     }
                 )
     except ImportError:

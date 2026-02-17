@@ -1,10 +1,11 @@
-"""Zigzag pivot detection utility (non-TA-Lib)."""
+"""Zigzag pivot detection utility."""
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import List, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from liq.signals import Signal
@@ -16,7 +17,7 @@ def zigzag_pivots(
     *,
     pct: float = 0.01,
     symbol: str = "",
-) -> List[Signal]:
+) -> list[Signal]:
     """Detect zigzag pivots and emit Signals at highs/lows.
 
     Args:
@@ -35,7 +36,7 @@ def zigzag_pivots(
         return []
 
     def _ts(ts: datetime) -> datetime:
-        return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+        return ts if ts.tzinfo else ts.replace(tzinfo=UTC)
 
     from liq.signals import Signal  # local import to avoid circular dependency
 
@@ -44,7 +45,7 @@ def zigzag_pivots(
     last_ts = _ts(timestamps[0])
     direction = 0  # 0 unknown, 1 uptrend, -1 downtrend
 
-    for ts_raw, price_raw in zip(timestamps[1:], prices[1:]):
+    for ts_raw, price_raw in zip(timestamps[1:], prices[1:], strict=False):
         price = Decimal(str(price_raw))
         ts = _ts(ts_raw)
         change = (price - last_pivot) / last_pivot

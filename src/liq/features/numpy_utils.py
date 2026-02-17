@@ -1,7 +1,7 @@
 """NumPy conversion helpers for Polars data.
 
 These helpers aim to minimize unnecessary copies while enforcing float64
-when required by downstream libraries (TA-Lib, scikit-learn, etc.).
+when required by downstream libraries (liq-ta, scikit-learn, etc.).
 """
 
 from __future__ import annotations

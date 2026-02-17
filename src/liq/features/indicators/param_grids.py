@@ -121,7 +121,7 @@ DEFAULT_PARAM_GRIDS: dict[str, dict[str, list[Any]]] = {
         "slow_period": [13, 21, 34],
         "signal_period": [5, 8, 13],
     },
-    # TA-Lib indicators (common ones)
+    # Dynamic liq-ta indicators (common ones)
     "cci": {"timeperiod": [8, 13, 21, 34, 55]},
     "willr": {"timeperiod": [5, 8, 13, 21, 34]},
     "mfi": {"timeperiod": [5, 8, 13, 21, 34]},
@@ -201,7 +201,7 @@ def enumerate_with_params(
         >>> [s.key for s in specs]
         ['rsi_period5', 'rsi_period10', 'rsi_period20']
     """
-    from liq.features.indicators.registry import get_indicator, list_indicators
+    from liq.features.indicators.registry import get_indicator
 
     grids = param_grids if param_grids is not None else DEFAULT_PARAM_GRIDS.copy()
 
@@ -212,13 +212,7 @@ def enumerate_with_params(
     result: list[IndicatorSpec] = []
     seen: set[tuple[str, tuple]] = set()
 
-    # Get list of available indicators
-    available = {info["name"]: info for info in list_indicators()}
-
     for name, grid in grids.items():
-        if name not in available:
-            continue
-
         if not grid:
             # No parameters to sweep
             spec = IndicatorSpec(name=name, params={})
@@ -233,7 +227,7 @@ def enumerate_with_params(
         param_values = [grid[p] for p in param_names]
 
         for combo in product(*param_values):
-            params = dict(zip(param_names, combo))
+            params = dict(zip(param_names, combo, strict=False))
             key = (name, tuple(sorted(params.items())))
 
             if key not in seen:
@@ -372,7 +366,7 @@ def auto_generate_param_grid(
     use_coarse: bool = False,
     max_period: int | None = None,
 ) -> dict[str, list[Any]]:
-    """Auto-generate parameter grid based on TA-Lib indicator metadata.
+    """Auto-generate parameter grid based on dynamic indicator metadata.
 
     Creates sensible parameter variations based on default values
     and parameter names.
@@ -388,7 +382,7 @@ def auto_generate_param_grid(
         Parameter grid dictionary.
 
     Example:
-        >>> from liq.features.indicators.talib import get_indicator_info
+        >>> from liq.features.indicators.liq_ta import get_indicator_info
         >>> info = get_indicator_info("RSI")
         >>> grid = auto_generate_param_grid(info)
         >>> print(grid)
@@ -474,7 +468,7 @@ def auto_generate_param_grid(
     return grid
 
 
-def generate_talib_param_grids(
+def generate_liq_ta_param_grids(
     *,
     exclude_categories: set[str] | None = None,
     exclude_indicators: set[str] | None = None,
@@ -486,7 +480,7 @@ def generate_talib_param_grids(
     max_period: int | None = None,
     timeframe: str | None = None,
 ) -> dict[str, dict[str, list[Any]]]:
-    """Generate parameter grids for all TA-Lib indicators.
+    """Generate parameter grids for all dynamic liq-ta indicators.
 
     Auto-generates sensible parameter variations for each indicator
     based on their default parameters and parameter names.
@@ -510,18 +504,18 @@ def generate_talib_param_grids(
         Dictionary mapping indicator names to parameter grids.
 
     Example:
-        >>> grids = generate_talib_param_grids()
+        >>> grids = generate_liq_ta_param_grids()
         >>> len(grids)
         97  # ~97 non-pattern indicators
 
-        >>> grids = generate_talib_param_grids(use_coarse=True)
+        >>> grids = generate_liq_ta_param_grids(use_coarse=True)
         >>> # ~240 variations (80 indicators × 3 periods)
 
         >>> # Extended sweep for 1h data
-        >>> grids = generate_talib_param_grids(use_extended=True, timeframe="1h")
+        >>> grids = generate_liq_ta_param_grids(use_extended=True, timeframe="1h")
     """
     try:
-        from liq.features.indicators.talib import list_dynamic_indicators
+        from liq.features.indicators.liq_ta import list_dynamic_indicators
     except ImportError:
         return {}
 
@@ -603,7 +597,7 @@ def generate_talib_param_grids(
 
 
 def get_single_price_indicators() -> list[str]:
-    """Get list of TA-Lib indicators that use single price input.
+    """Get list of dynamic indicators that use single price input.
 
     These indicators can be computed on different price columns
     (close, midrange, typical price, etc.).
@@ -612,7 +606,7 @@ def get_single_price_indicators() -> list[str]:
         List of indicator names.
     """
     try:
-        from liq.features.indicators.talib import list_dynamic_indicators
+        from liq.features.indicators.liq_ta import list_dynamic_indicators
     except ImportError:
         return []
 
