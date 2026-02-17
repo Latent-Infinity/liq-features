@@ -220,7 +220,6 @@ class TestComputeRollingReturns:
 
     def test_rolling_returns_sum_aggregation(self) -> None:
         """Test rolling sum of log returns."""
-        import math
 
         df = pl.DataFrame({
             "close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0],

@@ -34,18 +34,18 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from multiprocessing import current_process
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import polars as pl
+
+from liq.features.params import hash_params
 from liq.store import key_builder
 from liq.store.config import create_parquet_store_from_env
 from liq.store.parquet import ParquetStore
 from liq.store.protocols import TimeSeriesStore
-
-from liq.features.params import hash_params
 
 if TYPE_CHECKING:
     from liq.features.cache_models import (
@@ -486,7 +486,7 @@ class IndicatorCache:
         Returns:
             Creation timestamp, or None if unavailable.
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         try:
             # Get the storage root and construct the path
@@ -504,12 +504,12 @@ class IndicatorCache:
                 # Try direct file
                 if key_path.is_file():
                     mtime = key_path.stat().st_mtime
-                    return datetime.fromtimestamp(mtime, tz=timezone.utc)
+                    return datetime.fromtimestamp(mtime, tz=UTC)
                 return None
 
             # Use the oldest file's mtime as creation time
             oldest_mtime = min(f.stat().st_mtime for f in parquet_files)
-            return datetime.fromtimestamp(oldest_mtime, tz=timezone.utc)
+            return datetime.fromtimestamp(oldest_mtime, tz=UTC)
         except Exception:
             return None
 
@@ -525,7 +525,7 @@ class IndicatorCache:
         Returns:
             List of matching cache entries.
         """
-        from liq.features.cache_models import CacheEntry, CacheFilter
+        from liq.features.cache_models import CacheEntry
 
         # Get all keys
         keys = self._storage.list_keys()
@@ -576,7 +576,7 @@ class IndicatorCache:
         Returns:
             CleanupResult with deletion counts and any errors.
         """
-        from liq.features.cache_models import CacheEntry, CleanupCriteria, CleanupResult
+        from liq.features.cache_models import CacheEntry, CleanupResult
 
         result = CleanupResult(dry_run=dry_run)
 
@@ -618,14 +618,14 @@ class IndicatorCache:
 
         return result
 
-    def lockless_index(self, rebuild_on_exit: bool = True) -> "IndicatorCache":
+    def lockless_index(self, rebuild_on_exit: bool = True) -> IndicatorCache:
         """Return self configured for lockless indexing in a with block."""
         self._lockless_prev = self._index_enabled
         self._lockless_rebuild = rebuild_on_exit
         self._index_enabled = False
         return self
 
-    def __enter__(self) -> "IndicatorCache":
+    def __enter__(self) -> IndicatorCache:
         return self.lockless_index(rebuild_on_exit=True)
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

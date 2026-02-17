@@ -1,6 +1,6 @@
 """Tests for liq.features.alignment module."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import polars as pl
 
@@ -15,9 +15,9 @@ class TestAlignHigherTimeframe:
         base = pl.DataFrame(
             {
                 "timestamp": [
-                    datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
-                    datetime(2024, 1, 1, 0, 2, tzinfo=timezone.utc),
-                    datetime(2024, 1, 1, 0, 3, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 3, tzinfo=UTC),
                 ],
                 "open": [1, 2, 3],
             }
@@ -25,8 +25,8 @@ class TestAlignHigherTimeframe:
         higher = pl.DataFrame(
             {
                 "timestamp": [
-                    datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc),
-                    datetime(2024, 1, 1, 0, 5, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 5, tzinfo=UTC),
                 ],
                 "high_tf_value": [10, 20],
             }
@@ -44,7 +44,7 @@ class TestAlignHigherTimeframe:
         )
         higher = pl.DataFrame(
             {
-                "timestamp": [datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)],
+                "timestamp": [datetime(2024, 1, 1, 0, 0, tzinfo=UTC)],
                 "value": [10],
             }
         )
@@ -55,7 +55,7 @@ class TestAlignHigherTimeframe:
         """Test empty higher DataFrame returns base."""
         base = pl.DataFrame(
             {
-                "timestamp": [datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)],
+                "timestamp": [datetime(2024, 1, 1, 0, 0, tzinfo=UTC)],
                 "open": [1],
             }
         )
@@ -74,15 +74,15 @@ class TestAlignHigherTimeframe:
         base = pl.DataFrame(
             {
                 "ts": [
-                    datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
-                    datetime(2024, 1, 1, 0, 2, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
                 ],
                 "value": [1, 2],
             }
         )
         higher = pl.DataFrame(
             {
-                "ts": [datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)],
+                "ts": [datetime(2024, 1, 1, 0, 0, tzinfo=UTC)],
                 "high_val": [100],
             }
         )

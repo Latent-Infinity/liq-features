@@ -16,6 +16,6 @@ def test_pipeline_requires_fit_before_transform() -> None:
     pipe = FeaturePipeline(model_type="nn")
     try:
         pipe.transform([1, 2, 3])
-        assert False, "expected runtime error"
+        raise AssertionError("expected runtime error")
     except RuntimeError:
         pass

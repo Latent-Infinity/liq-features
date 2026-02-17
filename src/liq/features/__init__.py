@@ -61,9 +61,9 @@ from liq.features.derived import (
     compute_rolling_returns,
     compute_volatility,
 )
+from liq.features.feature_set import FeatureDefinition, FeatureSet
 from liq.features.forex import build_features as build_forex_features
 from liq.features.forex_labels import make_forex_labels
-from liq.features.feature_set import FeatureDefinition, FeatureSet
 from liq.features.indicators import configure_defaults, reset_defaults
 from liq.features.params import format_params_key, hash_params, normalize_params
 from liq.features.quantization import (
@@ -72,10 +72,10 @@ from liq.features.quantization import (
     get_indicator_scale,
     quantize_to_int,
 )
-from liq.features.store import FeatureStore
 
 # Selection utilities (sklearn/scipy wrappers)
 from liq.features.selection import mrmr_select, mutual_info_scores, spearman_matrix
+from liq.features.store import FeatureStore
 
 __all__ = [
     # Cache management

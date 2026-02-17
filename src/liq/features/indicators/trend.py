@@ -399,7 +399,7 @@ class HMA(BaseIndicator):
 
         values = df[column].to_numpy()
         ts_values = df["ts"]
-        n = len(values)
+        len(values)
 
         # Helper function to compute WMA
         def compute_wma(data: np.ndarray, wma_period: int) -> np.ndarray:

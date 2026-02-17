@@ -1,10 +1,10 @@
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 from liq.features.indicators.zigzag import zigzag_pivots
 
 
 def test_zigzag_basic_reversals() -> None:
-    ts0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    ts0 = datetime(2024, 1, 1, tzinfo=UTC)
     timestamps = [ts0 + timedelta(minutes=i) for i in range(6)]
     prices = [100, 102, 105, 102, 99, 104]
 
@@ -19,7 +19,7 @@ def test_zigzag_basic_reversals() -> None:
 
 def test_zigzag_requires_matching_lengths() -> None:
     try:
-        zigzag_pivots([datetime.now(timezone.utc)], [], pct=0.01, symbol="X")
+        zigzag_pivots([datetime.now(UTC)], [], pct=0.01, symbol="X")
     except ValueError:
         return
-    assert False, "Expected ValueError for mismatched lengths"
+    raise AssertionError("Expected ValueError for mismatched lengths")

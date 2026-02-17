@@ -20,13 +20,13 @@ Example:
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import polars as pl
-from liq.store import key_builder
-from liq.store.protocols import TimeSeriesStore
 
 from liq.features.params import hash_params
+from liq.store import key_builder
+from liq.store.protocols import TimeSeriesStore
 
 if TYPE_CHECKING:
     from liq.data.service import DataService

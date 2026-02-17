@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
-from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -321,7 +320,4 @@ class CacheFilter(BaseModel):
             if not fnmatch.fnmatch(entry.indicator.lower(), self.indicator.lower()):
                 return False
 
-        if self.timeframe is not None and entry.timeframe != self.timeframe:
-            return False
-
-        return True
+        return not (self.timeframe is not None and entry.timeframe != self.timeframe)

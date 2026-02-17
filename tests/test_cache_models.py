@@ -1,6 +1,6 @@
 """Tests for cache management data models."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -90,7 +90,7 @@ class TestCacheEntry:
     def test_from_key_with_timestamp(self) -> None:
         """Test parsing with creation timestamp."""
         key = "EUR_USD/indicators/macd/f1e2d3c4:15m:fedcba09"
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         entry = CacheEntry.from_key(key, size_bytes=2048, created_at=now)
 
         assert entry is not None
@@ -319,7 +319,7 @@ class TestCleanupCriteria:
     def test_older_than_filter(self) -> None:
         """Test filtering by age."""
         criteria = CleanupCriteria(older_than="7d")
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         old_entry = CacheEntry(
             key="BTC_USDT/indicators/rsi/a:1h:b",

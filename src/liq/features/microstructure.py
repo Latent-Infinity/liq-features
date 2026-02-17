@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+
 import polars as pl
 
 
@@ -18,7 +19,7 @@ def corwin_schultz_spread(df: pl.DataFrame) -> float:
     gamma = float(gamma)
     if gamma == 0 or beta == 0:
         return 0.0
-    k = (2 * math.exp(beta) - 1) / (1 + math.exp(beta))
+    (2 * math.exp(beta) - 1) / (1 + math.exp(beta))
     alpha = (math.sqrt(2 * beta) - math.sqrt(beta)) / (3 - 2 * math.sqrt(2))
     spread = 2 * (math.exp(alpha) - 1) / (1 + math.exp(alpha))
     return spread

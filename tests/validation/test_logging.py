@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import logging
 from io import StringIO
-from typing import Any
-from unittest.mock import patch
 
 import numpy as np
 import polars as pl

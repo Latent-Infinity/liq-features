@@ -17,8 +17,8 @@ from liq.features.validation.exceptions import (
     ConfigurationError,
     InsufficientDataError,
 )
-from liq.features.validation.temporal import rolling_mi_analysis
 from liq.features.validation.results import TemporalStabilityResult
+from liq.features.validation.temporal import rolling_mi_analysis
 
 
 class TestRollingMIAnalysis:

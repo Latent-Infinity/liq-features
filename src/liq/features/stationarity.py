@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from decimal import Decimal
-from typing import Iterable, List
-
-import polars as pl
 
 
 def _fracdiff_weights(d: float, max_lags: int = 50, tol: float = 1e-5) -> list[float]:
@@ -29,7 +26,7 @@ class StationarityTransformer:
     tol: float = 1e-5
     fitted_: bool = False
 
-    def fit(self, series: Iterable[float]) -> "StationarityTransformer":
+    def fit(self, series: Iterable[float]) -> StationarityTransformer:
         # Placeholder for ADF-based d selection; retain configured d for now.
         self.fitted_ = True
         return self

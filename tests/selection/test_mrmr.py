@@ -122,8 +122,6 @@ class TestMRMRSelect:
 
         # Should select one of x1/x2 and x3
         # Should NOT select both x1 and x2 due to redundancy
-        has_x1 = "x1" in selected
-        has_x2 = "x2" in selected
         has_x3 = "x3" in selected
 
         # Either x1 or x2, but not both (redundancy penalty)

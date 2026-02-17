@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -58,7 +57,7 @@ def _format_bytes(size_bytes: int) -> str:
 
 @cache_app.command("stats")
 def cache_stats(
-    cache_dir: Optional[Path] = typer.Option(
+    cache_dir: Path | None = typer.Option(
         None, "--cache-dir", "-d", help="Cache directory (default: from env)"
     ),
 ) -> None:
@@ -81,17 +80,17 @@ def cache_stats(
 
 @cache_app.command("list")
 def cache_list(
-    cache_dir: Optional[Path] = typer.Option(
+    cache_dir: Path | None = typer.Option(
         None, "--cache-dir", "-d", help="Cache directory"
     ),
-    symbol: Optional[str] = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
-    indicator: Optional[str] = typer.Option(
+    symbol: str | None = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
+    indicator: str | None = typer.Option(
         None, "--indicator", "-i", help="Filter by indicator (supports wildcards)"
     ),
-    timeframe: Optional[str] = typer.Option(
+    timeframe: str | None = typer.Option(
         None, "--timeframe", "-t", help="Filter by timeframe"
     ),
-    limit: Optional[int] = typer.Option(None, "--limit", "-n", help="Limit results"),
+    limit: int | None = typer.Option(None, "--limit", "-n", help="Limit results"),
 ) -> None:
     """List cached indicator entries."""
     from liq.features.cache_models import CacheFilter
@@ -131,20 +130,20 @@ def cache_list(
 
 @cache_app.command("clean")
 def cache_clean(
-    cache_dir: Optional[Path] = typer.Option(
+    cache_dir: Path | None = typer.Option(
         None, "--cache-dir", "-d", help="Cache directory"
     ),
-    symbol: Optional[str] = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
-    indicator: Optional[str] = typer.Option(
+    symbol: str | None = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
+    indicator: str | None = typer.Option(
         None, "--indicator", "-i", help="Filter by indicator (supports wildcards)"
     ),
-    timeframe: Optional[str] = typer.Option(
+    timeframe: str | None = typer.Option(
         None, "--timeframe", "-t", help="Filter by timeframe"
     ),
-    data_hash: Optional[str] = typer.Option(
+    data_hash: str | None = typer.Option(
         None, "--data-hash", help="Filter by data hash"
     ),
-    older_than: Optional[str] = typer.Option(
+    older_than: str | None = typer.Option(
         None, "--older-than", help="Filter by age (e.g., '7d', '24h')"
     ),
     all_entries: bool = typer.Option(
@@ -218,7 +217,7 @@ def cache_clean(
 
 @cache_app.command("rebuild-index")
 def cache_rebuild_index(
-    cache_dir: Optional[Path] = typer.Option(
+    cache_dir: Path | None = typer.Option(
         None, "--cache-dir", "-d", help="Cache directory"
     ),
 ) -> None:
@@ -231,7 +230,7 @@ def cache_rebuild_index(
 # Legacy command for backward compatibility
 @app.command("indicator-cache")
 def indicator_cache_legacy(
-    cache_dir: Optional[Path] = typer.Option(
+    cache_dir: Path | None = typer.Option(
         None, "--cache-dir", help="Cache directory"
     ),
     clear: bool = typer.Option(False, "--clear", help="Clear all cache entries"),

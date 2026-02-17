@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
+
+from liq.features.cache import get_data_hash
+from liq.features.derived import compute_derived_fields
+from liq.features.feature_set import FeatureDefinition, FeatureSet
+from liq.features.params import hash_params
 from liq.store import key_builder
 from liq.store.protocols import TimeSeriesStore
-
-from liq.features.feature_set import FeatureDefinition, FeatureSet
-from liq.features.derived import compute_derived_fields
-from liq.features.params import hash_params
-from liq.features.cache import get_data_hash
 
 if TYPE_CHECKING:
     from liq.data.service import DataService
@@ -22,7 +21,7 @@ if TYPE_CHECKING:
 @dataclass
 class FeatureStore:
     storage: TimeSeriesStore | None = None
-    data_service: "DataService | None" = None
+    data_service: DataService | None = None
 
     def __post_init__(self) -> None:
         if self.storage is None and self.data_service is not None:

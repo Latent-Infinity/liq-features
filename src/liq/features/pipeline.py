@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from typing import Iterable, Literal
 
 from liq.features.scaling import ModelAwareScaler, ModelType, ScalingParams
 from liq.features.stationarity import StationarityTransformer
@@ -25,7 +25,7 @@ class FeaturePipeline:
         self.scaler = ModelAwareScaler(model_type=model_type)
         self.state = PipelineState(model_type=model_type, d=d, scaling_params=None, fitted=False)
 
-    def fit(self, series: Iterable[float]) -> "FeaturePipeline":
+    def fit(self, series: Iterable[float]) -> FeaturePipeline:
         series_list = list(series)
         self.stationarity.fit(series_list)
         self.scaler.fit(series_list)
@@ -52,7 +52,7 @@ class FeaturePipeline:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "FeaturePipeline":
+    def from_dict(cls, data: dict) -> FeaturePipeline:
         pipe = cls(model_type=data["model_type"], d=data["d"])
         if params := data.get("scaling_params"):
             pipe.scaler.params = ScalingParams(**params)

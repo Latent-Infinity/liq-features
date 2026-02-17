@@ -6,11 +6,7 @@ implementations can be checked for compliance.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
-
 import polars as pl
-import pytest
 
 from liq.features.validation.protocols import (
     EffectSizeCalculator,
@@ -48,8 +44,8 @@ class TestValidatorProtocol:
             ) -> OutOfSampleResult:
                 return OutOfSampleResult(
                     features=features,
-                    train_mi={f: 0.1 for f in features},
-                    test_mi={f: 0.1 for f in features},
+                    train_mi=dict.fromkeys(features, 0.1),
+                    test_mi=dict.fromkeys(features, 0.1),
                     train_ranking={f: i for i, f in enumerate(features)},
                     test_ranking={f: i for i, f in enumerate(features)},
                     spearman_correlation=0.9,
@@ -130,7 +126,7 @@ class TestTemporalAnalyzerProtocol:
                     step_size=window_size // 2,
                     n_windows=5,
                     window_starts=[0, 100, 200, 300, 400],
-                    mi_by_window=[{f: 0.1 for f in features} for _ in range(5)],
+                    mi_by_window=[dict.fromkeys(features, 0.1) for _ in range(5)],
                     rank_by_window=[
                         {f: i for i, f in enumerate(features)} for _ in range(5)
                     ],

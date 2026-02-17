@@ -59,6 +59,12 @@ dev = [
 [project.urls]
 Repository = "https://github.com/example/liq-features"
 
+[tool.uv]
+[tool.uv.sources]
+liq-ta = { path = "../liq-ta/crates/liq-ta-python", editable = true }
+liq-data = { path = "../liq-data", editable = true }
+liq-store = { path = "../liq-store", editable = true }
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/liq"]
 

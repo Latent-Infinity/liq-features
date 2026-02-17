@@ -16,6 +16,6 @@ def test_stationarity_transformer_fit_transform_requires_fit() -> None:
     st2 = StationarityTransformer()
     try:
         st2.transform(data)
-        assert False, "expected runtime error when transform before fit"
+        raise AssertionError("expected runtime error when transform before fit")
     except RuntimeError:
         pass

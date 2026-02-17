@@ -1,7 +1,6 @@
 """Tests for liq.features.regime module."""
 
 import numpy as np
-import pytest
 
 from liq.features.regime import hurst_exponent
 

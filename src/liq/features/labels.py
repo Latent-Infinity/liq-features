@@ -12,8 +12,7 @@ Example:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
 
 import polars as pl
 
@@ -44,7 +43,7 @@ class TripleBarrierConfig:
     volatility_window: int = 20
 
 
-def triple_barrier_labels(df: pl.DataFrame, cfg: TripleBarrierConfig) -> List[int]:
+def triple_barrier_labels(df: pl.DataFrame, cfg: TripleBarrierConfig) -> list[int]:
     """Generate +1/-1/0 labels using triple barrier method.
 
     This is the original iterative implementation for backward compatibility.
@@ -61,7 +60,7 @@ def triple_barrier_labels(df: pl.DataFrame, cfg: TripleBarrierConfig) -> List[in
         For adaptive thresholds, use triple_barrier_labels_adaptive().
     """
     closes = df["close"]
-    labels: List[int] = []
+    labels: list[int] = []
 
     # Use fixed thresholds (backward compatible)
     tp_pct = cfg.take_profit if cfg.take_profit is not None else 0.02

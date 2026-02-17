@@ -25,6 +25,25 @@ Example:
 
 from __future__ import annotations
 
+# Effect size calculations
+from liq.features.validation.effect_size import (
+    batch_cohens_d,
+    cohens_d,
+    cohens_d_ci,
+    pooled_std,
+)
+
+# Exceptions
+from liq.features.validation.exceptions import (
+    ConfigurationError,
+    ConvergenceError,
+    InsufficientDataError,
+    ValidationError,
+)
+
+# Out-of-sample validation
+from liq.features.validation.out_of_sample import validate_oos
+
 # Protocols and interfaces
 from liq.features.validation.protocols import (
     MetricCalculator,
@@ -41,30 +60,11 @@ from liq.features.validation.results import (
     TemporalStabilityResult,
 )
 
-# Exceptions
-from liq.features.validation.exceptions import (
-    ConfigurationError,
-    ConvergenceError,
-    InsufficientDataError,
-    ValidationError,
-)
-
-# Effect size calculations
-from liq.features.validation.effect_size import (
-    batch_cohens_d,
-    cohens_d,
-    cohens_d_ci,
-    pooled_std,
-)
-
 # Sensitivity analysis
 from liq.features.validation.sensitivity import (
     batch_sensitivity_analysis,
     mi_sensitivity_analysis,
 )
-
-# Out-of-sample validation
-from liq.features.validation.out_of_sample import validate_oos
 
 # Temporal stability
 from liq.features.validation.temporal import rolling_mi_analysis

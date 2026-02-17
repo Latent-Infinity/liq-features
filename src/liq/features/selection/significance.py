@@ -21,16 +21,16 @@ Example:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
-
-from liq.features.numpy_utils import to_numpy_float64
 from numpy.typing import NDArray
 from sklearn.feature_selection import mutual_info_regression
 
+from liq.features.numpy_utils import to_numpy_float64
 from liq.features.selection.significance_results import (
     BootstrapResult,
     PairedDifferenceResult,

@@ -8,7 +8,6 @@ import polars as pl
 import pytest
 
 from liq.features.cache import (
-    CacheManager,
     IndicatorCache,
     compute_cache_key,
     get_data_hash,
@@ -18,7 +17,6 @@ from liq.features.cache_models import (
     CacheFilter,
     CacheStats,
     CleanupCriteria,
-    CleanupResult,
 )
 from liq.store.parquet import ParquetStore
 
@@ -829,11 +827,11 @@ class TestCacheAgeTracking:
         self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
     ) -> None:
         """Test that created_at is a reasonable recent timestamp."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime
 
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
-        before = datetime.now(tz=timezone.utc)
+        before = datetime.now(tz=UTC)
 
         key = compute_cache_key(
             symbol="BTC_USDT",
@@ -844,7 +842,7 @@ class TestCacheAgeTracking:
         )
         cache.set(key, sample_result_df)
 
-        after = datetime.now(tz=timezone.utc)
+        after = datetime.now(tz=UTC)
 
         entries = cache.list_entries()
         assert len(entries) == 1
@@ -853,7 +851,7 @@ class TestCacheAgeTracking:
 
         # Normalize timezones for comparison
         if created.tzinfo is None:
-            created = created.replace(tzinfo=timezone.utc)
+            created = created.replace(tzinfo=UTC)
 
         # Should be between before and after (with 1 second tolerance for timing)
         assert created >= before - timedelta(seconds=1)
@@ -927,7 +925,6 @@ class TestCacheAgeTracking:
     def test_older_than_various_durations(self) -> None:
         """Test parsing various duration formats."""
         from liq.features.cache_models import parse_duration
-        from datetime import timedelta
 
         assert parse_duration("7d") == timedelta(days=7)
         assert parse_duration("24h") == timedelta(hours=24)
@@ -936,8 +933,9 @@ class TestCacheAgeTracking:
 
     def test_older_than_invalid_format_raises(self) -> None:
         """Test that invalid duration format raises ValueError."""
-        from liq.features.cache_models import parse_duration
         import pytest
+
+        from liq.features.cache_models import parse_duration
 
         with pytest.raises(ValueError, match="Invalid duration format"):
             parse_duration("invalid")
@@ -964,7 +962,7 @@ class TestCacheAgeTracking:
         self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
     ) -> None:
         """Test that entries without created_at are not matched by older_than."""
-        from liq.features.cache_models import CacheEntry, CleanupCriteria
+        from liq.features.cache_models import CleanupCriteria
 
         # Create entry without timestamp
         entry = CacheEntry(

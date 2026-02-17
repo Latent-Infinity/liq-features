@@ -73,10 +73,7 @@ def spearman_matrix(
                 # Mask for pairwise complete
                 mask = ~(np.isnan(x_i) | np.isnan(x_j))
 
-                if min_periods is not None and mask.sum() < min_periods:
-                    corr_matrix[i, j] = np.nan
-                    corr_matrix[j, i] = np.nan
-                elif mask.sum() < 2:
+                if min_periods is not None and mask.sum() < min_periods or mask.sum() < 2:
                     corr_matrix[i, j] = np.nan
                     corr_matrix[j, i] = np.nan
                 else:

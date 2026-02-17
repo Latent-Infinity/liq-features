@@ -40,8 +40,8 @@ MIN_SAMPLES_PER_SPLIT = 10
 
 
 def validate_oos(
-    X: "pl.DataFrame",
-    y: "pl.Series",
+    X: pl.DataFrame,
+    y: pl.Series,
     features: list[str] | None = None,
     *,
     test_ratio: float = 0.2,

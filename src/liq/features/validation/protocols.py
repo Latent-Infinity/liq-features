@@ -37,10 +37,10 @@ class Validator(Protocol):
 
     def validate(
         self,
-        X: "pl.DataFrame",
-        y: "pl.Series",
+        X: pl.DataFrame,
+        y: pl.Series,
         features: list[str],
-    ) -> "OutOfSampleResult":
+    ) -> OutOfSampleResult:
         """Validate feature selection on given data.
 
         Args:
@@ -69,8 +69,8 @@ class MetricCalculator(Protocol):
 
     def calculate(
         self,
-        x: "pl.Series",
-        y: "pl.Series",
+        x: pl.Series,
+        y: pl.Series,
     ) -> float:
         """Calculate dependency metric between x and y.
 
@@ -107,12 +107,12 @@ class TemporalAnalyzer(Protocol):
 
     def analyze(
         self,
-        df: "pl.DataFrame",
-        X: "pl.DataFrame",
-        y: "pl.Series",
+        df: pl.DataFrame,
+        X: pl.DataFrame,
+        y: pl.Series,
         features: list[str],
         window_size: int,
-    ) -> "TemporalStabilityResult":
+    ) -> TemporalStabilityResult:
         """Analyze temporal stability of feature rankings.
 
         Args:
@@ -147,9 +147,9 @@ class EffectSizeCalculator(Protocol):
 
     def calculate(
         self,
-        group1: "pl.Series",
-        group2: "pl.Series",
-    ) -> "EffectSizeResult":
+        group1: pl.Series,
+        group2: pl.Series,
+    ) -> EffectSizeResult:
         """Calculate effect size between two groups.
 
         Args:
@@ -184,11 +184,11 @@ class SensitivityAnalyzer(Protocol):
 
     def analyze(
         self,
-        X: "pl.DataFrame",
-        y: "pl.Series",
+        X: pl.DataFrame,
+        y: pl.Series,
         features: list[str],
         parameter_values: list,
-    ) -> "SensitivityResult":
+    ) -> SensitivityResult:
         """Analyze sensitivity to a parameter.
 
         Args:

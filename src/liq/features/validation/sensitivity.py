@@ -35,8 +35,8 @@ MIN_SAMPLES_WARNING = 50
 
 
 def mi_sensitivity_analysis(
-    X: "pl.DataFrame",
-    y: "pl.Series",
+    X: pl.DataFrame,
+    y: pl.Series,
     feature: str,
     *,
     k_values: list[int] | None = None,
@@ -141,8 +141,8 @@ def mi_sensitivity_analysis(
 
 
 def batch_sensitivity_analysis(
-    X: "pl.DataFrame",
-    y: "pl.Series",
+    X: pl.DataFrame,
+    y: pl.Series,
     features: list[str] | None = None,
     *,
     k_values: list[int] | None = None,
@@ -224,7 +224,7 @@ def batch_sensitivity_analysis(
 
     # Build results for each feature
     results = {}
-    n_features = len(features)
+    len(features)
 
     for f_idx, feature in enumerate(features):
         mi_values = mi_matrix[:, f_idx].tolist()

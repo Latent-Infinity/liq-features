@@ -43,8 +43,8 @@ MIN_WINDOW_SAMPLES = 20
 
 
 def rolling_mi_analysis(
-    X: "pl.DataFrame",
-    y: "pl.Series",
+    X: pl.DataFrame,
+    y: pl.Series,
     features: list[str] | None = None,
     *,
     window_size: int,

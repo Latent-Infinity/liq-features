@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Literal, Optional
-
+from typing import Literal
 
 ModelType = Literal["tree", "nn", "transformer", "diffusion"]
 
@@ -22,9 +22,9 @@ class ModelAwareScaler:
 
     def __init__(self, model_type: ModelType) -> None:
         self.model_type = model_type
-        self.params: Optional[ScalingParams] = None
+        self.params: ScalingParams | None = None
 
-    def fit(self, series: Iterable[float]) -> "ModelAwareScaler":
+    def fit(self, series: Iterable[float]) -> ModelAwareScaler:
         values = list(series)
         if not values:
             raise ValueError("Cannot fit scaler on empty data")

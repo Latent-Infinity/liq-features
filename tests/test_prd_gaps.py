@@ -8,7 +8,7 @@ This module tests features required by the PRD but not yet implemented:
 - include_incomplete parameter in Aggregator
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import polars as pl
@@ -140,13 +140,13 @@ class TestComputeIndicators:
     @pytest.fixture
     def sample_bars(self) -> pl.DataFrame:
         """Create sample OHLCV bars for testing."""
-        from datetime import timedelta
         import random
+        from datetime import timedelta
         random.seed(42)
 
         n = 100
         base_price = 100.0
-        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        base_time = datetime(2024, 1, 1, tzinfo=UTC)
         timestamps = [base_time + timedelta(minutes=i) for i in range(n)]
 
         prices = []
@@ -271,6 +271,7 @@ class TestCacheStats:
     def test_cache_stats_counts_after_computation(self, tmp_path: Path) -> None:
         """Test cache_stats shows entries after indicator computation."""
         from datetime import timedelta
+
         from liq.features import cache_stats
         from liq.features.indicators import get_indicator
         from liq.store.parquet import ParquetStore
@@ -279,7 +280,7 @@ class TestCacheStats:
 
         # Compute an indicator
         df = pl.DataFrame({
-            "ts": [datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(minutes=i) for i in range(50)],
+            "ts": [datetime(2024, 1, 1, tzinfo=UTC) + timedelta(minutes=i) for i in range(50)],
             "close": [100.0 + i * 0.1 for i in range(50)],
             "high": [101.0 + i * 0.1 for i in range(50)],
             "low": [99.0 + i * 0.1 for i in range(50)],
@@ -304,7 +305,7 @@ class TestIncompleteBarHandling:
 
         # 75 minutes of data = 1 complete hour + 15 minutes partial
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc) + timedelta(minutes=i)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
             for i in range(75)
         ]
 
@@ -369,11 +370,12 @@ class TestIncompleteBarHandling:
     def test_all_complete_bars(self) -> None:
         """Test aggregation when all bars form complete periods."""
         from datetime import timedelta
+
         from liq.features.aggregation import Aggregator
 
         # Exactly 2 hours of data
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc) + timedelta(minutes=i)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
             for i in range(120)
         ]
 
@@ -397,11 +399,12 @@ class TestIncompleteBarHandling:
     def test_only_partial_period(self) -> None:
         """Test aggregation with only partial period data."""
         from datetime import timedelta
+
         from liq.features.aggregation import Aggregator
 
         # Only 30 minutes of data
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc) + timedelta(minutes=i)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
             for i in range(30)
         ]
 
@@ -425,11 +428,12 @@ class TestIncompleteBarHandling:
     def test_convenience_function_supports_include_incomplete(self) -> None:
         """Test aggregate_to_timeframe supports include_incomplete parameter."""
         from datetime import timedelta
+
         from liq.features.aggregation import aggregate_to_timeframe
 
         # 75 minutes
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc) + timedelta(minutes=i)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
             for i in range(75)
         ]
 

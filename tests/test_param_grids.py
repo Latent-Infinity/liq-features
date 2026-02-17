@@ -1,6 +1,5 @@
 """Tests for indicator parameter grid enumeration."""
 
-import pytest
 
 from liq.features.indicators import (
     DEFAULT_PARAM_GRIDS,

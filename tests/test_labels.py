@@ -1,7 +1,6 @@
 """Tests for liq.features.labels module."""
 
 import polars as pl
-import pytest
 
 from liq.features.labels import (
     TripleBarrierConfig,

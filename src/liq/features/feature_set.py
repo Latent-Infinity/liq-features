@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, List
 
 FeatureCallable = Callable[..., object]
 
@@ -15,7 +15,7 @@ class FeatureDefinition:
     tier: str = "primary"
     lookback: int = 0
     input_column: str = "close"
-    dependencies: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

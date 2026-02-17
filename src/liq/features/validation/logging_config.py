@@ -44,9 +44,7 @@ def log_function_entry(
     for key, value in params.items():
         if hasattr(value, "__len__") and not isinstance(value, (str, dict)):
             safe_params[key] = f"<{type(value).__name__} len={len(value)}>"
-        elif isinstance(value, (int, float, str, bool, type(None))):
-            safe_params[key] = value
-        elif isinstance(value, list) and len(value) <= 10:
+        elif isinstance(value, (int, float, str, bool, type(None))) or isinstance(value, list) and len(value) <= 10:
             safe_params[key] = value
         else:
             safe_params[key] = f"<{type(value).__name__}>"

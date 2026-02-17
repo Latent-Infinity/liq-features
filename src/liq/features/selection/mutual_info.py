@@ -6,7 +6,6 @@ Provides a Polars-friendly interface to sklearn's mutual_info_regression.
 from __future__ import annotations
 
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -101,10 +100,10 @@ def mutual_info_scores(
 
 
 def _add_jitter(
-    x: "NDArray[np.floating]",
+    x: NDArray[np.floating],
     rng: np.random.Generator,
     jitter_scale: float = 1e-10,
-) -> "NDArray[np.floating]":
+) -> NDArray[np.floating]:
     """Add small random noise to break ties in discretized data.
 
     The KNN-based MI estimator can produce inflated scores when many samples
@@ -129,8 +128,8 @@ def _add_jitter(
 def _compute_mi_single_feature_from_array(
     col_idx: int,
     col_name: str,
-    X_np: "NDArray[np.floating]",
-    y_np: "NDArray[np.floating]",
+    X_np: NDArray[np.floating],
+    y_np: NDArray[np.floating],
     n_neighbors: int,
     random_state: int | None,
     min_samples: int,
@@ -205,7 +204,7 @@ def mutual_info_scores_per_feature(
     normalize: bool = False,
     min_samples: int = 100,
     n_jobs: int | None = None,
-    progress_callback: "Callable[[int, int], None] | None" = None,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> pl.DataFrame:
     """Calculate MI for each feature independently, handling NaN per-feature.
 

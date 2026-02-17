@@ -14,11 +14,11 @@ import polars as pl
 import pytest
 
 from liq.features.validation.exceptions import ConfigurationError
-from liq.features.validation.sensitivity import (
-    mi_sensitivity_analysis,
-    batch_sensitivity_analysis,
-)
 from liq.features.validation.results import SensitivityResult
+from liq.features.validation.sensitivity import (
+    batch_sensitivity_analysis,
+    mi_sensitivity_analysis,
+)
 
 
 class TestMISensitivityAnalysis:

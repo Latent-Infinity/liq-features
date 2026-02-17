@@ -86,5 +86,5 @@ def test_feature_store_resolves_dependencies(tmp_path: Path) -> None:
 
     outputs = fs.compute_feature_set(df, fs_def, symbol="EUR_USD", timeframe="1m", force_recalculate=True)
     assert outputs["dep"]["value"].to_list() == [2.0]
-    dep_keys = [k for k in store.list_keys(prefix="EUR_USD/indicators/dep/")]
+    dep_keys = list(store.list_keys(prefix="EUR_USD/indicators/dep/"))
     assert dep_keys

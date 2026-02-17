@@ -17,6 +17,7 @@ from liq.features.numpy_utils import to_numpy_float64
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
@@ -43,8 +44,8 @@ _FLOAT_EPS = 1e-10
 
 
 def _compute_relevance_from_numpy(
-    X_np: "NDArray[np.floating]",
-    y_np: "NDArray[np.floating]",
+    X_np: NDArray[np.floating],
+    y_np: NDArray[np.floating],
     feature_names: list[str],
 ) -> pl.DataFrame:
     """Compute relevance (absolute correlation) for each feature vs target.
@@ -81,7 +82,7 @@ def _compute_relevance_from_numpy(
 
     # Vectorized correlation computation
     # For each feature, compute correlation with y using valid (non-NaN) pairs
-    for i, col in enumerate(feature_names):
+    for i, _col in enumerate(feature_names):
         x_col = X_np[:, i]
 
         # Pairwise complete observations (exclude NaN and inf)
@@ -120,7 +121,7 @@ def _compute_relevance_from_numpy(
 
 
 def _compute_correlation_matrix_from_numpy(
-    X_np: "NDArray[np.floating]",
+    X_np: NDArray[np.floating],
     features: list[str],
 ) -> dict[tuple[str, str], float]:
     """Compute pairwise Pearson correlations for feature redundancy.
@@ -251,7 +252,7 @@ def mrmr_select(
     show_progress: bool = False,
     max_features: int | None = None,
     mi_scores: pl.DataFrame | None = None,
-    progress_callback: "Callable[[int, int], None] | None" = None,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> list[str] | MRMRResult:
     """Select top K features using mRMR algorithm (native Polars implementation).
 
@@ -351,7 +352,7 @@ def mrmr_select(
         logger.info("Computing feature relevance...")
 
     relevance_df = _compute_relevance_from_numpy(X_np, y_np, feature_list)
-    relevance = dict(zip(relevance_df["feature"].to_list(), relevance_df["relevance"].to_list()))
+    relevance = dict(zip(relevance_df["feature"].to_list(), relevance_df["relevance"].to_list(), strict=False))
 
     # Step 2: Compute correlation matrix for redundancy
     if show_progress:
