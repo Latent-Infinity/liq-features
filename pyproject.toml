@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "liq-features"
-version = "0.1.0"
+version = "0.1.1"
 description = "Feature engineering and technical indicators for the LIQ stack"
 readme = "README.md"
 license = "MIT"
@@ -26,9 +26,9 @@ dependencies = [
     "numpy>=2.0",
     "typer>=0.15",
     "rich>=13.9",
-    "liq-ta>=0.1.0",
-    "liq-data>=0.1.0",
-    "liq-store>=0.1.0",
+    "liq-ta>=0.1.1",
+    "liq-data>=0.1.2",
+    "liq-store>=0.1.1",
     "scikit-learn>=1.4",
     "scipy>=1.11",
 ]
