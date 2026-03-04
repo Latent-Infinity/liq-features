@@ -4,11 +4,27 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from liq.signals import Signal
+else:
+    try:
+        from liq.signals import Signal
+    except ModuleNotFoundError:
+        @dataclass(frozen=True)
+        class Signal:
+            """Fallback signal representation for environments without liq-signals installed."""
+
+            symbol: str
+            timestamp: datetime
+            direction: str
+            strength: float = 1.0
+            target_weight: float | None = None
+            horizon: int | None = None
+            metadata: dict[str, object] = field(default_factory=dict)
 
 
 def zigzag_pivots(
@@ -37,8 +53,6 @@ def zigzag_pivots(
 
     def _ts(ts: datetime) -> datetime:
         return ts if ts.tzinfo else ts.replace(tzinfo=UTC)
-
-    from liq.signals import Signal  # local import to avoid circular dependency
 
     signals: list[Signal] = []
     last_pivot = Decimal(str(prices[0]))

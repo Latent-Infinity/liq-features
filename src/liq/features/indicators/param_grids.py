@@ -372,7 +372,7 @@ def auto_generate_param_grid(
     and parameter names.
 
     Args:
-        indicator_info: Indicator metadata from get_indicator_info().
+        indicator_info: Indicator metadata from get_indicator_metadata().
         period_variations: Custom period variations. Uses default if None.
         use_extended: If True, use extended Fibonacci sequences (up to 2584).
         use_coarse: If True, use only 4 periods (5, 8, 21, 55) for fast initial ranking.
@@ -382,8 +382,8 @@ def auto_generate_param_grid(
         Parameter grid dictionary.
 
     Example:
-        >>> from liq.features.indicators.liq_ta import get_indicator_info
-        >>> info = get_indicator_info("RSI")
+        >>> from liq.features.indicators.liq_ta import get_indicator_metadata
+        >>> info = get_indicator_metadata("RSI")
         >>> grid = auto_generate_param_grid(info)
         >>> print(grid)
         {'timeperiod': [5, 8, 13, 21, 34, 55]}

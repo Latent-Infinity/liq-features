@@ -6,7 +6,12 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from liq.features.indicators import BaseIndicator, get_indicator, list_indicators
+from liq.features.indicators import (
+    BaseIndicator,
+    get_indicator,
+    get_indicator_metadata,
+    list_indicators,
+)
 from liq.features.indicators.momentum import MACD, ROC, RSI, Stochastic
 from liq.features.indicators.trend import ADX, ATR, BBANDS, EMA, HMA, SMA, WMA
 from liq.store.parquet import ParquetStore
@@ -118,6 +123,78 @@ class TestIndicatorRegistry:
         assert "rsi" in names  # hardcoded baseline
         assert "ta_dummy" in names
         assert sources.get("ta_dummy") == "liq_ta"
+
+    def test_get_indicator_metadata(self) -> None:
+        """Test canonical metadata output for a hardcoded indicator."""
+        metadata = get_indicator_metadata("rsi")
+        params = {entry["name"]: entry for entry in metadata["parameters"]}
+
+        assert metadata["name"] == "rsi"
+        assert metadata["source"] == "hardcoded"
+        assert params["period"]["dtype"] == "int"
+        assert params["period"]["default"] == 14
+        assert params["period"]["allowed_values"] == [2, 3, 5, 8, 13, 14, 21, 34, 55]
+
+    def test_get_indicator_metadata_infers_hardcoded_multi_inputs(self) -> None:
+        """Test hardcoded indicators expose all required input columns."""
+        expected_inputs = {
+            "atr": ["high", "low", "close"],
+            "adx": ["high", "low", "close"],
+            "stochastic": ["high", "low", "close"],
+            "atr_midrange": ["high", "low", "midrange"],
+            "adx_midrange": ["high", "low", "midrange"],
+            "stochastic_midrange": ["high", "low", "midrange"],
+            "abnormal_turnover": ["volume"],
+            "normalized_volume": ["volume"],
+        }
+
+        for name, inputs in expected_inputs.items():
+            metadata = get_indicator_metadata(name)
+            assert metadata["inputs"] == inputs
+            assert metadata["input_names"] == {column: [column] for column in inputs}
+
+    def test_get_indicator_metadata_preserves_hardcoded_multi_outputs(self) -> None:
+        """BBANDS metadata must expose all output columns for registry splitting."""
+        metadata = get_indicator_metadata("bbands")
+        assert metadata["outputs"] == ["upper", "middle", "lower"]
+
+    def test_get_indicator_metadata_discrete_grid_for_dynamic(self) -> None:
+        """Test canonical metadata includes discrete grid defaults for derived indicators."""
+        metadata = get_indicator_metadata("natr")
+        params = {entry["name"]: entry for entry in metadata["parameters"]}
+
+        assert metadata["name"] == "natr"
+        assert metadata["source"] == "liq_ta"
+        assert params["timeperiod"]["dtype"] == "int"
+        assert params["timeperiod"]["default"] == 14
+        assert params["timeperiod"]["allowed_values"] == [5, 8, 13, 14, 21, 34]
+        assert params["timeperiod"]["default"] in params["timeperiod"]["allowed_values"]
+
+    def test_get_indicator_metadata_dynamic_lookup(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test dynamic liq-ta metadata lookup is merged into registry."""
+        from liq.features.indicators import liq_ta as liq_ta_mod
+
+        monkeypatch.setattr(
+            liq_ta_mod,
+            "get_indicator_metadata",
+            lambda name: {
+                "name": "ta_dynamic",
+                "display_name": "TA Dynamic",
+                "group": "Momentum",
+                "inputs": ["close"],
+                "input_names": {"close": ["close"]},
+                "parameters": {"timeperiod": 10},
+                "outputs": ["real"],
+            },
+        )
+        monkeypatch.setattr(
+            "liq.features.indicators.param_grids.get_param_grid",
+            lambda _name: {"timeperiod": [10, 14, 21]},
+        )
+
+        metadata = get_indicator_metadata("ta_dynamic")
+        assert metadata["source"] == "liq_ta"
+        assert metadata["default_params"]["timeperiod"] == 10
 
 
 class TestRSI:

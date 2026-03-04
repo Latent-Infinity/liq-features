@@ -317,17 +317,26 @@ class Stochastic_Midrange(BaseIndicator):
 
         # Compute midrange if not present
         if input_col not in df.columns:
-            df = df.with_columns(
-                [((pl.col("high") + pl.col("low")) / 2).alias(input_col)]
-            )
+            if "high" in df.columns and "low" in df.columns:
+                df = df.with_columns(
+                    [((pl.col("high") + pl.col("low")) / 2).alias(input_col)]
+                )
+            else:
+                # If explicit midrange values are provided, continue with those.
+                # Otherwise fail explicitly to surface missing source columns.
+                raise KeyError(
+                    f"Input column '{input_col}' not found and high/low are unavailable"
+                )
+
+        source = pl.col(input_col)
 
         # Calculate highest high and lowest low
         result = df.select(
             [
                 pl.col("ts"),
-                pl.col(input_col),
-                pl.col("high").rolling_max(window_size=k_period).alias("highest_high"),
-                pl.col("low").rolling_min(window_size=k_period).alias("lowest_low"),
+                source.alias(input_col),
+                source.rolling_max(window_size=k_period).alias("highest_high"),
+                source.rolling_min(window_size=k_period).alias("lowest_low"),
             ]
         )
 

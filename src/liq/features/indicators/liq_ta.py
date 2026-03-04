@@ -187,10 +187,34 @@ def map_inputs(
 
         if input_key_lower == "prices":
             if isinstance(input_spec, list):
+                fallback: NDArray[np.floating[Any]] | None = None
+                if price_column not in df.columns:
+                    if "close" in df.columns:
+                        price_column = "close"
+                    elif "prices" in df.columns:
+                        price_column = "prices"
+                if price_column in df.columns:
+                    fallback = _to_float64(_get_col_array(price_column))
+                non_ts_columns = [col for col in df.columns if col != "ts"]
                 for col in input_spec:
-                    col_lower = col.lower()
+                    col_lower = str(col).lower()
+                    allow_volume_proxy = (
+                        col_lower == "volume"
+                        and fallback is not None
+                        and len(non_ts_columns) == 1
+                        and non_ts_columns[0] == price_column
+                    )
                     if col_lower in df.columns:
                         inputs[col_lower] = _to_float64(_get_col_array(col_lower))
+                    elif fallback is not None and col_lower in {
+                        "open",
+                        "high",
+                        "low",
+                        "close",
+                        "real",
+                        "price",
+                    } | ({"volume"} if allow_volume_proxy else set()):
+                        inputs[col_lower] = fallback
                     else:
                         raise ValueError(
                             f"Indicator {indicator_name} requires '{col_lower}' column, "
@@ -203,7 +227,16 @@ def map_inputs(
 
         elif input_key_lower in ("price", "real", "real0"):
             if price_column not in df.columns:
-                price_column = "close"
+                if "real" in df.columns:
+                    price_column = "real"
+                elif "value" in df.columns:
+                    price_column = "value"
+                elif "close" in df.columns:
+                    price_column = "close"
+                else:
+                    non_ts_columns = [col for col in df.columns if col != "ts"]
+                    if non_ts_columns:
+                        price_column = non_ts_columns[0]
             inputs["close"] = _to_float64(_get_col_array(price_column))
 
         elif input_key_lower == "real1":
@@ -211,15 +244,27 @@ def map_inputs(
                 inputs["high"] = _to_float64(_get_col_array("high"))
             else:
                 if price_column not in df.columns:
-                    price_column = "close"
+                    if "real" in df.columns:
+                        price_column = "real"
+                    elif "value" in df.columns:
+                        price_column = "value"
+                    elif "close" in df.columns:
+                        price_column = "close"
+                    else:
+                        non_ts_columns = [col for col in df.columns if col != "ts"]
+                        if non_ts_columns:
+                            price_column = non_ts_columns[0]
                 inputs["close"] = _to_float64(_get_col_array(price_column))
 
         elif input_key_lower in ("price0", "price1"):
+            target = "close" if input_key_lower == "price0" else "high"
             if isinstance(input_spec, str) and input_spec.lower() in df.columns:
                 col = input_spec.lower()
                 inputs[col] = _to_float64(_get_col_array(col))
+            elif input_key_lower in df.columns:
+                inputs[target] = _to_float64(_get_col_array(input_key_lower))
             elif price_column in df.columns:
-                inputs[price_column] = _to_float64(_get_col_array(price_column))
+                inputs[target] = _to_float64(_get_col_array(price_column))
             else:
                 raise ValueError(
                     f"Indicator {indicator_name} requires '{input_spec}' column, "
@@ -483,8 +528,8 @@ def get_available_indicators() -> list[str]:
     return sorted(_registry().keys())
 
 
-def get_indicator_info(name: str) -> dict[str, Any]:
-    """Get metadata for a dynamic indicator (legacy-compatible shape)."""
+def get_indicator_metadata(name: str) -> dict[str, Any]:
+    """Get canonical metadata for a dynamic indicator."""
     _check_liq_ta()
     key = name.lower()
 
@@ -502,7 +547,7 @@ def get_indicator_info(name: str) -> dict[str, Any]:
         "display_name": info["display_name"],
         "group": info["group"],
         "inputs": info["inputs"],
-        "input_names": info["input_names"],
+        "input_names": dict(info.get("input_names", {str(name): [str(name)]})),
         "parameters": info["parameters"],
         "outputs": info["outputs"],
     }
@@ -515,13 +560,59 @@ def _backend_kwargs(entry: dict[str, Any], params: dict[str, Any]) -> dict[str, 
     aliases = dict(_GENERIC_PARAM_ALIASES)
     aliases.update(_FUNCTION_PARAM_ALIASES.get(function_name, {}))
 
-    kwargs: dict[str, Any] = {}
+    canonicalized: dict[str, tuple[Any, bool]] = {}
     for key, value in params.items():
         if key.startswith("_"):
             continue
         mapped = aliases.get(key, key)
-        if mapped in backend_params:
-            kwargs[mapped] = value
+        if mapped not in backend_params:
+            continue
+
+        # Canonical keys should win over legacy aliases when both are present.
+        is_canonical = key == mapped
+        current = canonicalized.get(mapped)
+        if current is None or is_canonical:
+            canonicalized[mapped] = (value, is_canonical)
+
+    kwargs: dict[str, Any] = {}
+    for key, (value, _) in canonicalized.items():
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            if (
+                key.endswith("_period")
+                or key in {"timeperiod", "timeperiod1", "timeperiod2", "timeperiod3"}
+                or key == "displacement"
+                or key in {"maxima", "lookback", "period"}
+            ):
+                kwargs[key] = int(value)
+            else:
+                kwargs[key] = value
+        else:
+            kwargs[key] = value
+
+    # Guard common cross-parameter invariants to avoid hard runtime failures in
+    # callers that pass invalid combinations.
+    fast_period = kwargs.get("fast_period")
+    slow_period = kwargs.get("slow_period")
+    if isinstance(fast_period, (int, float)) and isinstance(slow_period, (int, float)):
+        fast_int = int(fast_period)
+        slow_int = int(slow_period)
+        if fast_int >= slow_int and slow_int > 0:
+            if slow_int == 1:
+                slow_int = 2
+            else:
+                fast_int = max(1, slow_int - 1)
+            kwargs["fast_period"] = fast_int
+            kwargs["slow_period"] = slow_int
+
+    min_period = kwargs.get("min_period")
+    max_period = kwargs.get("max_period")
+    if isinstance(min_period, (int, float)) and isinstance(max_period, (int, float)):
+        min_int = max(1, int(min_period))
+        max_int = max(1, int(max_period))
+        if max_int < min_int:
+            min_int, max_int = max_int, min_int
+        kwargs["min_period"] = min_int
+        kwargs["max_period"] = max_int
 
     # Bollinger compatibility: legacy nbdevup/nbdevdn -> single std_dev.
     if "std_dev" in backend_params and "std_dev" not in kwargs:
@@ -593,11 +684,38 @@ def _compute_dynamic(
     backend_fn = getattr(liq_ta, entry["_function_name"])
     result_arrays = backend_fn(*args, **kwargs)
 
+    if df.height == 0:
+        raise ValueError("Input DataFrame must not be empty")
+
+    target_length = len(df["ts"]) if "ts" in df.columns else len(next(iter(inputs.values())))
+
+    def _align_output(values: Any) -> np.ndarray:
+        array = np.asarray(values, dtype=np.float64)
+        if len(array) == target_length:
+            return array
+        if len(array) < target_length:
+            pad = np.full(target_length - len(array), np.nan, dtype=np.float64)
+            return np.concatenate([pad, array])
+        return array[-target_length:]
+
+    if isinstance(result_arrays, (tuple, list)):
+        result_arrays = [_align_output(values) for values in result_arrays]
+    else:
+        result_arrays = _align_output(result_arrays)
+
     if entry["_mode"] == "natr":
-        atr_values = result_arrays
+        if isinstance(result_arrays, list):
+            atr_values = result_arrays[0]
+        else:
+            atr_values = result_arrays
         close_arr = inputs["close"]
         with np.errstate(divide="ignore", invalid="ignore"):
-            result_arrays = (atr_values / close_arr) * 100.0
+            close_values = np.asarray(close_arr, dtype=np.float64)
+            result_arrays = (atr_values / close_values) * 100.0
+            result_arrays = np.asarray(result_arrays)
+            # Treat near-zero close values as invalid to avoid unstable spikes.
+            result_arrays[np.abs(close_values) <= np.finfo(np.float64).eps] = np.nan
+            result_arrays[~np.isfinite(result_arrays)] = np.nan
 
     output_indices = entry.get("_output_indices")
     if output_indices is not None:
@@ -669,7 +787,7 @@ def list_dynamic_indicators() -> list[dict[str, Any]]:
 
     for name in get_available_indicators():
         try:
-            info = get_indicator_info(name)
+            info = get_indicator_metadata(name)
             result.append(
                 {
                     "name": name,

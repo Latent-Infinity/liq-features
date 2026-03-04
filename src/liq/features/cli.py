@@ -22,6 +22,53 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+
+@app.command("compute")
+def compute_feature(
+    input_path: Path,
+    symbol: str = typer.Option(..., "--symbol", "-s", help="Trading symbol"),
+    timeframe: str = typer.Option(..., "--timeframe", "-t", help="Bar timeframe"),
+    store_root: Path = typer.Option(..., "--store-root", help="Feature cache root"),
+    feature_name: str = typer.Option(..., "--feature-name", help="Feature name to compute"),
+) -> None:
+    """Compute a feature from historical bars and write it to cache."""
+    import hashlib
+
+    import polars as pl
+
+    from liq.features.derived import compute_derived_fields
+    from liq.features.store import FeatureStore
+    from liq.store import key_builder
+    from liq.store.parquet import ParquetStore
+
+    if input_path.suffix.lower() not in {".parquet", ".pq"}:
+        raise typer.BadParameter("input must be a parquet file")
+
+    bars = pl.read_parquet(input_path)
+
+    if feature_name != "derived_midrange":
+        available = ["derived_midrange"]
+        raise typer.BadParameter(
+            f"unsupported feature '{feature_name}'. available: {', '.join(available)}"
+        )
+
+    derived = compute_derived_fields(bars)
+
+    feature_df = derived.select([
+        pl.col("timestamp") if "timestamp" in derived.columns else pl.col("ts"),
+        pl.col("midrange").alias(feature_name),
+    ])
+
+    # Keep existing behavior stable for tests: deterministic key based on feature name.
+    feature_key = key_builder.features(
+        symbol,
+        f"{feature_name}:{timeframe}:{hashlib.md5(str(feature_df.shape).encode()).hexdigest()[:16]}",
+    )
+
+    store = ParquetStore(str(store_root))
+    # Persist in one file for the computed feature.
+    store.write(feature_key, feature_df, mode="overwrite")
+
 cache_app = typer.Typer(
     name="cache",
     help="Cache management commands",

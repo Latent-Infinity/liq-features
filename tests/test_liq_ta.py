@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import patch
 
 import polars as pl
+import numpy as np
 import pytest
 
 from liq.features.indicators.liq_ta import (
@@ -16,7 +17,7 @@ from liq.features.indicators.liq_ta import (
     format_outputs,
     get_available_indicators,
     get_dynamic_indicator,
-    get_indicator_info,
+    get_indicator_metadata,
     list_dynamic_indicators,
     map_inputs,
 )
@@ -128,52 +129,53 @@ class TestGetAvailableIndicators:
 
 
 class TestGetIndicatorInfo:
-    """Tests for get_indicator_info function."""
+    """Tests for get_indicator_metadata function."""
 
     def test_returns_dict(self) -> None:
         """Test function returns a dictionary."""
-        info = get_indicator_info("rsi")
+        info = get_indicator_metadata("rsi")
         assert isinstance(info, dict)
 
     def test_contains_required_keys(self) -> None:
         """Test dict contains required keys."""
-        info = get_indicator_info("sma")
+        info = get_indicator_metadata("sma")
         assert "name" in info
         assert "display_name" in info
         assert "group" in info
         assert "inputs" in info
         assert "parameters" in info
         assert "outputs" in info
+        assert "input_names" in info
 
     def test_case_insensitive(self) -> None:
         """Test indicator lookup is case-insensitive."""
-        info1 = get_indicator_info("RSI")
-        info2 = get_indicator_info("rsi")
-        info3 = get_indicator_info("Rsi")
+        info1 = get_indicator_metadata("RSI")
+        info2 = get_indicator_metadata("rsi")
+        info3 = get_indicator_metadata("Rsi")
 
         assert info1["name"] == info2["name"] == info3["name"] == "RSI"
 
     def test_unknown_indicator_raises(self) -> None:
         """Test unknown indicator raises ValueError."""
         with pytest.raises(ValueError, match="Unknown liq-ta indicator"):
-            get_indicator_info("not_a_real_indicator_xyz")
+            get_indicator_metadata("not_a_real_indicator_xyz")
 
     def test_rsi_info(self) -> None:
         """Test RSI indicator info."""
-        info = get_indicator_info("rsi")
+        info = get_indicator_metadata("rsi")
         assert info["name"] == "RSI"
         assert "timeperiod" in info["parameters"]
         assert "real" in info["outputs"] or "RSI" in info["outputs"]
 
     def test_macd_info_has_multiple_outputs(self) -> None:
         """Test MACD indicator info has multiple outputs."""
-        info = get_indicator_info("macd")
+        info = get_indicator_metadata("macd")
         assert info["name"] == "MACD"
         assert len(info["outputs"]) >= 3  # MACD, signal, histogram
 
     def test_bbands_info_has_multiple_outputs(self) -> None:
         """Test Bollinger Bands info has multiple outputs."""
-        info = get_indicator_info("bbands")
+        info = get_indicator_metadata("bbands")
         assert len(info["outputs"]) == 3  # upper, middle, lower
 
 
@@ -305,6 +307,41 @@ class TestDynamicIndicatorCompute:
 
         assert "ts" in result.columns
         assert "value" in result.columns
+
+    def test_natr_formula_matches_atr_with_zero_close_protection(
+        self,
+        sample_ohlc_df: pl.DataFrame,
+    ) -> None:
+        """NATR value equals ATR ÷ close × 100 when close is safely non-zero."""
+        close_values = sample_ohlc_df["close"].to_list()
+        close_values[0] = 0.0
+        close_values[1] = 1e-18
+        sample = sample_ohlc_df.with_columns(pl.Series("close", close_values))
+
+        NATR = get_dynamic_indicator("natr")
+        ATR = get_dynamic_indicator("atr")
+        natr = NATR(params={"timeperiod": 5})
+        atr = ATR(params={"timeperiod": 5})
+
+        natr_result = natr.compute(sample)
+        atr_result = atr.compute(sample)
+
+        natr_values = natr_result["value"].to_numpy()
+        atr_values = atr_result["value"].to_numpy()
+        close_values = sample["close"].to_numpy()
+
+        shared_len = min(len(natr_values), len(atr_values), len(close_values))
+        natr_values = natr_values[-shared_len:]
+        atr_values = atr_values[-shared_len:]
+        close_values = close_values[-shared_len:]
+
+        protected_mask = np.abs(close_values) <= np.finfo(np.float64).eps
+        finite_mask = np.isfinite(atr_values) & (~protected_mask)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            expected = (atr_values / close_values) * 100.0
+
+        assert np.all(np.isnan(natr_values[protected_mask]))
+        assert np.allclose(natr_values[finite_mask], expected[finite_mask])
 
     def test_willr_compute(self, sample_ohlc_df: pl.DataFrame) -> None:
         """Test Williams %R indicator computation (uses prices input)."""
@@ -487,6 +524,18 @@ class TestMapInputs:
 
         with pytest.raises(ValueError, match="requires 'volume' column"):
             map_inputs(df, input_names, indicator_name="mfi")
+
+    def test_prices_only_frame_can_proxy_volume(self, sample_ohlc_df: pl.DataFrame) -> None:
+        """Single-series frames may proxy both close and volume from 'prices'."""
+        from collections import OrderedDict
+
+        df = sample_ohlc_df.select("ts", pl.col("close").alias("prices"))
+        input_names = OrderedDict({"prices": ["close", "volume"]})
+        inputs = map_inputs(df, input_names, indicator_name="obv")
+
+        assert "close" in inputs
+        assert "volume" in inputs
+        np.testing.assert_array_equal(inputs["close"], inputs["volume"])
 
     def test_real1_uses_high(self, sample_ohlc_df: pl.DataFrame) -> None:
         """Test 'real1' input uses high column."""
@@ -775,9 +824,9 @@ class TestCandlestickPatterns:
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_get_indicator_info_has_input_names(self) -> None:
-        """Test get_indicator_info includes input_names in response."""
-        info = get_indicator_info("mfi")
+    def test_get_indicator_metadata_has_input_names(self) -> None:
+        """Test get_indicator_metadata includes input_names in response."""
+        info = get_indicator_metadata("mfi")
         assert "input_names" in info
         assert isinstance(info["input_names"], dict)
 
@@ -860,10 +909,23 @@ class TestEdgeCases:
         assert "value" in result.columns
         assert len(result) > 0
 
-    def test_get_indicator_info_unknown_raises(self) -> None:
-        """Test get_indicator_info raises for unknown indicator."""
+    def test_mavp_swaps_inverted_min_max_periods(
+        self, sample_ohlc_df: pl.DataFrame
+    ) -> None:
+        """MAVP handles inverted period bounds by normalizing them."""
+        MAVP = get_dynamic_indicator("mavp")
+        indicator = MAVP(params={"min_period": 30, "max_period": 10})
+
+        result = indicator.compute(sample_ohlc_df)
+
+        assert "ts" in result.columns
+        assert "value" in result.columns
+        assert len(result) > 0
+
+    def test_get_indicator_metadata_unknown_raises(self) -> None:
+        """Test get_indicator_metadata raises for unknown indicator."""
         with pytest.raises(ValueError, match="Unknown liq-ta indicator"):
-            get_indicator_info("not_a_real_indicator_xyz_123")
+            get_indicator_metadata("not_a_real_indicator_xyz_123")
 
     def test_to_float64_already_float64(self) -> None:
         """Test _to_float64 returns same array if already float64."""

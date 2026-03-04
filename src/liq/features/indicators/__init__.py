@@ -34,6 +34,7 @@ from liq.features.indicators.registry import (
     configure_defaults,
     get_indicator,
     list_indicators,
+    get_indicator_metadata,
     reset_defaults,
 )
 from liq.features.indicators.zigzag import zigzag_pivots
@@ -41,6 +42,7 @@ from liq.features.indicators.zigzag import zigzag_pivots
 __all__ = [
     "BaseIndicator",
     "get_indicator",
+    "get_indicator_metadata",
     "list_indicators",
     "configure_defaults",
     "reset_defaults",

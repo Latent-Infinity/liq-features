@@ -199,7 +199,7 @@ class TestIndicatorCache:
         """Test initialization creates cache directory."""
         store = ParquetStore(str(temp_cache_dir))
         cache = IndicatorCache(storage=store)
-        assert cache.storage_root == temp_cache_dir
+        assert cache.storage_root == temp_cache_dir.resolve()
 
     def test_get_returns_none_for_missing(self, temp_cache_dir: Path) -> None:
         """Test get returns None for missing key."""
