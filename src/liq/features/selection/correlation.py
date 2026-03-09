@@ -192,6 +192,7 @@ def cluster_features(
     Returns:
         DataFrame with feature and cluster assignment.
     """
+    del metric
     from scipy.cluster.hierarchy import fcluster, linkage
     from scipy.spatial.distance import squareform
 

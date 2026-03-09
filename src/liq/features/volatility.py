@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import polars as pl
+
+
+def _coerce_float(value: object) -> float:
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float, Decimal)):
+        return float(value)
+    raise TypeError(f"expected numeric scalar, got {type(value).__name__}")
 
 
 def yang_zhang(df: pl.DataFrame) -> float:
@@ -13,9 +23,9 @@ def yang_zhang(df: pl.DataFrame) -> float:
     log_lo = (df["low"] / df["open"]).log()
     log_co = (df["close"] / df["open"]).log()
     log_oc = (df["open"] / df["close"].shift(1)).log().fill_null(0)
-    rs = (log_ho * (log_ho - log_lo)).sum() / (df.height - 1)
-    close_vol = log_co.var()
-    open_vol = log_oc.var()
+    rs = _coerce_float((log_ho * (log_ho - log_lo)).sum()) / (df.height - 1)
+    close_vol = _coerce_float(log_co.var())
+    open_vol = _coerce_float(log_oc.var())
     return float((open_vol + 0.164333 * close_vol + 0.835667 * rs) ** 0.5)
 
 
@@ -25,4 +35,5 @@ def garman_klass(df: pl.DataFrame) -> float:
         return 0.0
     log_hl = (df["high"] / df["low"]).log()
     log_co = (df["close"] / df["open"]).log()
-    return float(((0.5 * log_hl ** 2) - (2 * log_co ** 2)).mean() ** 0.5)
+    mean_variance = _coerce_float(((0.5 * log_hl ** 2) - (2 * log_co ** 2)).mean())
+    return float(mean_variance**0.5)

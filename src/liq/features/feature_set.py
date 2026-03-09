@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-FeatureCallable = Callable[..., object]
+import polars as pl
+
+FeatureCallable = Callable[[pl.DataFrame, str], pl.DataFrame]
 
 
 @dataclass(frozen=True, slots=True)

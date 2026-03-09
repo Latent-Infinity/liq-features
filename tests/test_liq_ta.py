@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import patch
 
-import polars as pl
 import numpy as np
+import polars as pl
 import pytest
 
 from liq.features.indicators.liq_ta import (

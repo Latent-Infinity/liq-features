@@ -1,6 +1,7 @@
 """Tests for liq.features.cache module."""
 
 import tempfile
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -56,7 +57,7 @@ def sample_result_df() -> pl.DataFrame:
 
 
 @pytest.fixture
-def temp_cache_dir() -> Path:
+def temp_cache_dir() -> Iterator[Path]:
     """Create a temporary cache directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)

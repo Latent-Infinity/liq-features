@@ -19,8 +19,12 @@ def _sample_df(rows: int) -> pl.DataFrame:
 def test_make_forex_labels_direction() -> None:
     df = _sample_df(10).with_columns(pl.lit(1.0).alias("spread_bps"))
     out = make_forex_labels(df, horizon_bars=2, threshold_k=0.0, spread_bps_col="spread_bps")
-    assert out["label"].min() >= 1
-    assert out["label"].max() <= 2
+    label_min = out["label"].cast(pl.Int64).min()
+    label_max = out["label"].cast(pl.Int64).max()
+    assert isinstance(label_min, int)
+    assert isinstance(label_max, int)
+    assert label_min >= 1
+    assert label_max <= 2
     assert out.height == 8
 
 

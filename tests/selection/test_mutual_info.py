@@ -1,5 +1,7 @@
 """Tests for Mutual Information calculation wrapper."""
 
+from decimal import Decimal
+
 import numpy as np
 import polars as pl
 import pytest
@@ -70,8 +72,14 @@ class TestMutualInfoScores:
         result = mutual_info_scores(features, target, normalize=True, random_state=42)
 
         # Max score should be 1.0 after normalization
-        assert result["mi_score"].max() == pytest.approx(1.0, rel=1e-6)
-        assert result["mi_score"].min() >= 0.0
+        max_raw = result["mi_score"].max()
+        min_raw = result["mi_score"].min()
+        assert isinstance(max_raw, (int, float, Decimal))
+        assert isinstance(min_raw, (int, float, Decimal))
+        max_score = float(max_raw)
+        min_score = float(min_raw)
+        assert max_score == pytest.approx(1.0, rel=1e-6)
+        assert min_score >= 0.0
 
     def test_handles_nan_values(self) -> None:
         """Test NaN values are handled correctly with drop_na=True."""

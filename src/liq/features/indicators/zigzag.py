@@ -2,29 +2,28 @@
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from liq.signals import Signal
+try:
+    Signal = importlib.import_module("liq.signals").Signal
+except ModuleNotFoundError:
+    @dataclass(frozen=True)
+    class Signal:
+        """Fallback signal representation for environments without liq-signals installed."""
+
+        symbol: str
+        timestamp: datetime
+        direction: str
+        strength: float = 1.0
+        target_weight: float | None = None
+        horizon: int | None = None
+        metadata: dict[str, object] = field(default_factory=dict)
 else:
-    try:
-        from liq.signals import Signal
-    except ModuleNotFoundError:
-        @dataclass(frozen=True)
-        class Signal:
-            """Fallback signal representation for environments without liq-signals installed."""
-
-            symbol: str
-            timestamp: datetime
-            direction: str
-            strength: float = 1.0
-            target_weight: float | None = None
-            horizon: int | None = None
-            metadata: dict[str, object] = field(default_factory=dict)
+    Signal = Signal
 
 
 def zigzag_pivots(

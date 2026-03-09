@@ -10,11 +10,12 @@ Design Principles:
     - DRY: Reusable across all indicator types
 """
 
+import importlib
 import json
 from typing import Any
 
 try:
-    import xxhash
+    xxhash = importlib.import_module("xxhash")
 
     HAS_XXHASH = True
 except ImportError:
@@ -23,7 +24,7 @@ except ImportError:
     HAS_XXHASH = False
 
 
-def normalize_params(params: dict[str, Any]) -> dict[str, Any]:
+def normalize_params(params: Any) -> Any:
     """Normalize parameter dictionary for consistent hashing.
 
     Recursively sorts dictionary keys to ensure consistent ordering regardless

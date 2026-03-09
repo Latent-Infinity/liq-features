@@ -43,6 +43,27 @@ class TripleBarrierConfig:
     volatility_window: int = 20
 
 
+def build_binary_next_bar_labels(close: pl.Series, *, horizon_bars: int = 1) -> pl.Series:
+    """Build binary labels from forward close movement.
+
+    Returns ``1.0`` when the future close at ``horizon_bars`` is above the
+    current close and ``0.0`` otherwise.
+    """
+
+    if horizon_bars < 1:
+        raise ValueError("horizon_bars must be >= 1")
+    shifted = close.shift(-horizon_bars)
+    labels = (shifted > close).cast(pl.Float64).fill_null(0.0)
+    return labels.alias("label")
+
+
+def map_labels_to_binary(labels: pl.Series) -> pl.Series:
+    """Map arbitrary labels to {0.0, 1.0} using positive-vs-non-positive semantics."""
+
+    name = labels.name or "label"
+    return (labels.cast(pl.Float64) > 0.0).cast(pl.Float64).fill_null(0.0).alias(name)
+
+
 def triple_barrier_labels(df: pl.DataFrame, cfg: TripleBarrierConfig) -> list[int]:
     """Generate +1/-1/0 labels using triple barrier method.
 
@@ -136,10 +157,7 @@ def triple_barrier_labels_adaptive(
         for i in range(n):
             if i < window:
                 # Not enough data for full window
-                if i > 0:
-                    std = _compute_std(returns[: i + 1])
-                else:
-                    std = 0.01  # Default volatility
+                std = _compute_std(returns[: i + 1]) if i > 0 else 0.01
             else:
                 std = _compute_std(returns[i - window + 1 : i + 1])
             rolling_std.append(std if std > 0 else 0.01)

@@ -109,6 +109,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/cli.py" = ["B904"]  # typer.Exit() is intentionally not chained
+"src/liq/features/cli.py" = ["B008"]  # Typer option defaults are the intended API here
+"tests/**" = ["ARG"]  # Protocol stubs and fixture-shaped test doubles intentionally keep full signatures
+"tests/selection/test_mrmr.py" = ["E402", "F401"]  # optional dependency gating requires delayed import shape
 
 [tool.ruff.lint.isort]
 known-first-party = ["liq"]

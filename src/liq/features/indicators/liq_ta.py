@@ -446,7 +446,14 @@ def _build_registry() -> dict[str, dict[str, Any]]:
 
     for function_name, meta in liq_ta.INDICATORS.items():
         public_name = _public_name_for_function(function_name)
-        backend_params = list(meta.get("params", []))
+        raw_params = meta.get("params", [])
+        backend_params = list(raw_params) if isinstance(raw_params, (list, tuple)) else []
+        raw_outputs = meta.get("outputs", [])
+        backend_outputs = list(raw_outputs) if isinstance(raw_outputs, (list, tuple)) else []
+        raw_inputs = meta.get("inputs", [])
+        backend_inputs = [str(value) for value in raw_inputs] if isinstance(raw_inputs, (list, tuple)) else []
+        category = str(meta.get("category", ""))
+        display_name = str(meta.get("name", public_name.upper()))
 
         parameters: dict[str, Any] = {}
         for p in backend_params:
@@ -455,18 +462,19 @@ def _build_registry() -> dict[str, dict[str, Any]]:
         if function_name == "bollinger":
             parameters.setdefault("nbdevdn", parameters.get("nbdevup", 2.0))
 
-        outputs, output_indices = _public_outputs(function_name, list(meta.get("outputs", [])))
+        outputs, output_indices = _public_outputs(function_name, backend_outputs)
+        input_names = _build_input_names(backend_inputs)
 
         registry[public_name] = {
             "name": public_name.upper(),
-            "display_name": meta.get("name", public_name.upper()),
-            "group": _group_for_indicator(function_name, meta.get("category", "")),
-            "inputs": list(_build_input_names(list(meta.get("inputs", []))).keys()),
-            "input_names": _build_input_names(list(meta.get("inputs", []))),
+            "display_name": display_name,
+            "group": _group_for_indicator(function_name, category),
+            "inputs": list(input_names.keys()),
+            "input_names": input_names,
             "parameters": parameters,
             "outputs": outputs,
             "_function_name": function_name,
-            "_backend_inputs": list(meta.get("inputs", [])),
+            "_backend_inputs": backend_inputs,
             "_backend_params": backend_params,
             "_output_indices": output_indices,
             "_mode": "direct",
@@ -704,10 +712,7 @@ def _compute_dynamic(
         result_arrays = _align_output(result_arrays)
 
     if entry["_mode"] == "natr":
-        if isinstance(result_arrays, list):
-            atr_values = result_arrays[0]
-        else:
-            atr_values = result_arrays
+        atr_values = result_arrays[0] if isinstance(result_arrays, list) else result_arrays
         close_arr = inputs["close"]
         with np.errstate(divide="ignore", invalid="ignore"):
             close_values = np.asarray(close_arr, dtype=np.float64)

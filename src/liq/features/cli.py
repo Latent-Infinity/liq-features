@@ -37,7 +37,6 @@ def compute_feature(
     import polars as pl
 
     from liq.features.derived import compute_derived_fields
-    from liq.features.store import FeatureStore
     from liq.store import key_builder
     from liq.store.parquet import ParquetStore
 

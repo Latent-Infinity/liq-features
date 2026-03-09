@@ -65,6 +65,13 @@ from liq.features.feature_set import FeatureDefinition, FeatureSet
 from liq.features.forex import build_features as build_forex_features
 from liq.features.forex_labels import make_forex_labels
 from liq.features.indicators import configure_defaults, reset_defaults
+from liq.features.labels import (
+    TripleBarrierConfig,
+    build_binary_next_bar_labels,
+    map_labels_to_binary,
+    triple_barrier_labels,
+    triple_barrier_labels_adaptive,
+)
 from liq.features.params import format_params_key, hash_params, normalize_params
 from liq.features.quantization import (
     INDICATOR_SCALES,
@@ -76,7 +83,6 @@ from liq.features.quantization import (
 # Selection utilities (sklearn/scipy wrappers)
 from liq.features.store import FeatureStore
 
-
 _SELECTION_IMPORT_ERROR: Exception | None = None
 
 try:
@@ -84,15 +90,15 @@ try:
 except Exception as exc:  # pragma: no cover - exercised through import-path failures
     _SELECTION_IMPORT_ERROR = exc
 
-    def mrmr_select(*_args, **_kwargs):  # type: ignore[empty-body]
+    def mrmr_select(*_args, **_kwargs):
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
 
-    def mutual_info_scores(*_args, **_kwargs):  # type: ignore[empty-body]
+    def mutual_info_scores(*_args, **_kwargs):
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
 
-    def spearman_matrix(*_args, **_kwargs):  # type: ignore[empty-body]
+    def spearman_matrix(*_args, **_kwargs):
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
 
@@ -120,6 +126,11 @@ __all__ = [
     "DEFAULT_FIBONACCI_WINDOWS",
     "build_forex_features",
     "make_forex_labels",
+    "TripleBarrierConfig",
+    "build_binary_next_bar_labels",
+    "map_labels_to_binary",
+    "triple_barrier_labels",
+    "triple_barrier_labels_adaptive",
     # Aggregation
     "Aggregator",
     "aggregate_to_timeframe",

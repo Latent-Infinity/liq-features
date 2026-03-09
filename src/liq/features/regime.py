@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 
 
-def hurst_exponent(series: list[float]) -> float:
+def hurst_exponent(series: Sequence[float | int]) -> float:
     """Estimate Hurst exponent using rescaled range."""
     if len(series) < 20:
         return 0.5

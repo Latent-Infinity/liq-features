@@ -1,17 +1,13 @@
 """Tests for mRMR feature selection wrapper."""
 
+import importlib.util
+
 import numpy as np
 import polars as pl
 import pytest
 
 # mRMR tests require optional dependency
-mrmr_available = False
-try:
-    from mrmr import mrmr_regression
-
-    mrmr_available = True
-except ImportError:
-    pass
+mrmr_available = importlib.util.find_spec("mrmr") is not None
 
 
 pytestmark = pytest.mark.skipif(not mrmr_available, reason="mrmr-selection not installed")

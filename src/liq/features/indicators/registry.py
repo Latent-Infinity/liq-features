@@ -17,8 +17,9 @@ Example:
     >>> available = list_indicators()
 """
 
-from collections.abc import Iterable, Mapping
+import importlib
 import math
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from liq.features.indicators.base import BaseIndicator
@@ -165,26 +166,27 @@ def _build_metadata_parameter_specs(
     default_params: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
     """Build stable parameter metadata entries."""
+    param_grids_module: Any | None
     try:
-        from liq.features.indicators.param_grids import get_param_grid
+        param_grids_module = importlib.import_module("liq.features.indicators.param_grids")
     except Exception:
-        get_param_grid = None
+        param_grids_module = None
 
     allowed_grid = {}
-    if get_param_grid is not None:
+    if param_grids_module is not None:
         try:
-            allowed_grid = get_param_grid(indicator_name)
+            allowed_grid = param_grids_module.get_param_grid(indicator_name)
         except Exception:
             allowed_grid = {}
 
     parameters: list[dict[str, Any]] = []
     for param_name, default_value in default_params.items():
-        allowed = _sorted_discrete_values(allowed_grid.get(param_name, None)) or []
+        allowed = _sorted_discrete_values(allowed_grid.get(param_name)) or []
         if default_value not in allowed and allowed and isinstance(default_value, (int, float)) and not isinstance(default_value, bool):
             if isinstance(default_value, float):
-                allowed = sorted(set([*allowed, float(default_value)]))
+                allowed = sorted({*allowed, float(default_value)})
             else:
-                allowed = sorted(set([*allowed, int(default_value)]))
+                allowed = sorted({*allowed, int(default_value)})
 
         dtype_name = type(default_value).__name__
         if isinstance(default_value, bool):

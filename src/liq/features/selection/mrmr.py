@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 
 import numpy as np
 import polars as pl
@@ -241,6 +241,38 @@ def _compute_correlation_matrix_from_numpy(
     return corr_cache
 
 
+@overload
+def mrmr_select(
+    X: pl.DataFrame,
+    y: pl.Series,
+    K: int = 10,
+    *,
+    denominator: str = "mean",
+    only_same_domain: bool = False,
+    return_scores: Literal[False] = False,
+    show_progress: bool = False,
+    max_features: int | None = None,
+    mi_scores: pl.DataFrame | None = None,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> list[str]: ...
+
+
+@overload
+def mrmr_select(
+    X: pl.DataFrame,
+    y: pl.Series,
+    K: int = 10,
+    *,
+    denominator: str = "mean",
+    only_same_domain: bool = False,
+    return_scores: Literal[True],
+    show_progress: bool = False,
+    max_features: int | None = None,
+    mi_scores: pl.DataFrame | None = None,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> MRMRResult: ...
+
+
 def mrmr_select(
     X: pl.DataFrame,
     y: pl.Series,
@@ -443,6 +475,36 @@ def mrmr_select(
         return MRMRResult(selected_features=selected, scores=scores_df)
 
     return selected
+
+
+@overload
+def mrmr_classif(
+    X: pl.DataFrame,
+    y: pl.Series,
+    K: int = 10,
+    *,
+    denominator: str = "mean",
+    only_same_domain: bool = False,
+    return_scores: Literal[False] = False,
+    show_progress: bool = False,
+    max_features: int | None = None,
+    mi_scores: pl.DataFrame | None = None,
+) -> list[str]: ...
+
+
+@overload
+def mrmr_classif(
+    X: pl.DataFrame,
+    y: pl.Series,
+    K: int = 10,
+    *,
+    denominator: str = "mean",
+    only_same_domain: bool = False,
+    return_scores: Literal[True],
+    show_progress: bool = False,
+    max_features: int | None = None,
+    mi_scores: pl.DataFrame | None = None,
+) -> MRMRResult: ...
 
 
 def mrmr_classif(

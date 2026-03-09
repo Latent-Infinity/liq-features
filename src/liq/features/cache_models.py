@@ -205,9 +205,10 @@ class CleanupCriteria(BaseModel):
         if self.symbol is not None and entry.symbol != self.symbol:
             return False
 
-        if self.indicator is not None:
-            if not fnmatch.fnmatch(entry.indicator.lower(), self.indicator.lower()):
-                return False
+        if self.indicator is not None and not fnmatch.fnmatch(
+            entry.indicator.lower(), self.indicator.lower()
+        ):
+            return False
 
         if self.timeframe is not None and entry.timeframe != self.timeframe:
             return False
@@ -316,8 +317,9 @@ class CacheFilter(BaseModel):
         if self.symbol is not None and entry.symbol != self.symbol:
             return False
 
-        if self.indicator is not None:
-            if not fnmatch.fnmatch(entry.indicator.lower(), self.indicator.lower()):
-                return False
+        if self.indicator is not None and not fnmatch.fnmatch(
+            entry.indicator.lower(), self.indicator.lower()
+        ):
+            return False
 
         return not (self.timeframe is not None and entry.timeframe != self.timeframe)

@@ -16,6 +16,7 @@ def align_higher_timeframe(
     - Uses last available completed higher-TF bar (shifted) and forward-fills.
     - Guards against look-ahead by shifting by `shift_periods`.
     """
+    del shift_periods
     if base_df.is_empty() or higher_df.is_empty():
         return base_df
     higher_sorted = higher_df.sort(timestamp_col)

@@ -32,6 +32,8 @@ Example:
 from __future__ import annotations
 
 import hashlib
+import importlib
+import io
 import logging
 import os
 from datetime import UTC, datetime
@@ -65,13 +67,13 @@ except Exception:
     _INDEX_LOCK = None
 
 # Try to import xxhash for faster hashing
+xxhash: Any | None
 try:
-    import xxhash
-
+    xxhash = importlib.import_module("xxhash")
     HAS_XXHASH = True
 except ImportError:
     HAS_XXHASH = False
-    xxhash = None  # type: ignore[assignment]
+    xxhash = None
 
 
 @runtime_checkable
@@ -138,13 +140,13 @@ def get_data_hash(df: pl.DataFrame) -> str:
     Returns:
         Hex string hash of the data
     """
-    # Serialize DataFrame to bytes
-    data_bytes = df.write_ipc(None).getvalue()
+    buffer = io.BytesIO()
+    df.write_ipc(buffer)
+    data_bytes = buffer.getvalue()
 
-    if HAS_XXHASH:
+    if HAS_XXHASH and xxhash is not None:
         return xxhash.xxh64(data_bytes).hexdigest()
-    else:
-        return hashlib.sha256(data_bytes).hexdigest()[:16]
+    return hashlib.sha256(data_bytes).hexdigest()[:16]
 
 
 def compute_cache_key(
@@ -326,6 +328,7 @@ class IndicatorCache:
             indicator: Optional indicator name for index metadata
             params: Optional params dict for index metadata
         """
+        del symbol, timeframe, indicator, params
         self._storage.write(key, df, mode="overwrite")
 
         if not self._index_enabled or current_process().name != "MainProcess":

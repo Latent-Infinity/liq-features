@@ -288,17 +288,17 @@ def mutual_info_scores_per_feature(
             delayed(_safe_compute)(col_idx, col_name)
             for col_idx, col_name in enumerate(feature_names)
         )
-        for result in generator:
+        for completed, result in enumerate(generator, start=1):
             results.append(result)
-            completed += 1
             if progress_callback and completed % 100 == 0:
                 progress_callback(completed, n_features)
 
     result = pl.DataFrame(results)
 
     if normalize:
-        max_score = result["mi_score"].max()
-        if max_score is not None and max_score > 0:
+        max_score_raw = result["mi_score"].max()
+        max_score = float(max_score_raw) if isinstance(max_score_raw, int | float) else 0.0
+        if max_score > 0:
             result = result.with_columns(
                 (pl.col("mi_score") / max_score).alias("mi_score")
             )

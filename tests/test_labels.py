@@ -4,6 +4,8 @@ import polars as pl
 
 from liq.features.labels import (
     TripleBarrierConfig,
+    build_binary_next_bar_labels,
+    map_labels_to_binary,
     triple_barrier_labels,
     triple_barrier_labels_adaptive,
 )
@@ -238,7 +240,7 @@ class TestTripleBarrierLabelsAdaptive:
 
         # With flat prices, all labels should be timeout (0)
         # (except possibly last few positions)
-        timeout_count = sum(1 for l in labels if l == 0)
+        timeout_count = sum(1 for label_value in labels if label_value == 0)
         assert timeout_count > len(labels) // 2
 
     def test_adaptive_volatility_based_thresholds(self) -> None:
@@ -303,3 +305,33 @@ class TestTripleBarrierLabelsAdaptive:
 
         # Labels should match when using fixed thresholds
         assert original_labels == adaptive_labels
+
+
+class TestBinaryLabelHelpers:
+    """Tests for binary-label helpers shared with experiments."""
+
+    def test_build_binary_next_bar_labels(self) -> None:
+        close = pl.Series("close", [100.0, 101.0, 99.0, 100.0])
+
+        labels = build_binary_next_bar_labels(close)
+
+        assert labels.name == "label"
+        assert labels.to_list() == [1.0, 0.0, 1.0, 0.0]
+
+    def test_build_binary_next_bar_labels_rejects_invalid_horizon(self) -> None:
+        close = pl.Series("close", [100.0, 101.0])
+
+        try:
+            build_binary_next_bar_labels(close, horizon_bars=0)
+        except ValueError as exc:
+            assert "horizon_bars must be >= 1" in str(exc)
+        else:  # pragma: no cover - defensive assertion
+            raise AssertionError("expected ValueError for invalid horizon")
+
+    def test_map_labels_to_binary(self) -> None:
+        labels = pl.Series("triple_barrier", [-1, 0, 1, 2, None])
+
+        mapped = map_labels_to_binary(labels)
+
+        assert mapped.name == "triple_barrier"
+        assert mapped.to_list() == [0.0, 0.0, 1.0, 1.0, 0.0]

@@ -601,6 +601,8 @@ class TestHMA:
         # Values should be within reasonable range of price data
         min_price = sample_ohlc_df_large["low"].min()
         max_price = sample_ohlc_df_large["high"].max()
+        assert isinstance(min_price, float)
+        assert isinstance(max_price, float)
         assert all(min_price - 10 < v < max_price + 10 for v in values)
 
     def test_hma_custom_column(self, sample_ohlc_df_large: pl.DataFrame) -> None:

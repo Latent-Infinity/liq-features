@@ -101,6 +101,7 @@ class TestOOSConfigValidation:
             validate_oos(X, y, features=["feature_a"], test_ratio=0)
 
         assert exc_info.value.parameter == "test_ratio"
+        assert exc_info.value.valid_range is not None
         assert "0 < test_ratio < 1" in exc_info.value.valid_range
 
     def test_test_ratio_one_raises(

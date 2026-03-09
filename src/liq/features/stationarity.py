@@ -27,6 +27,7 @@ class StationarityTransformer:
     fitted_: bool = False
 
     def fit(self, series: Iterable[float]) -> StationarityTransformer:
+        del series
         # Placeholder for ADF-based d selection; retain configured d for now.
         self.fitted_ = True
         return self
