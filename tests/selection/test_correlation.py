@@ -17,11 +17,13 @@ class TestSpearmanMatrix:
 
     def test_basic_calculation(self) -> None:
         """Test basic Spearman correlation matrix."""
-        features = pl.DataFrame({
-            "a": [1.0, 2.0, 3.0, 4.0, 5.0],
-            "b": [1.0, 2.0, 3.0, 4.0, 5.0],  # Perfectly correlated with a
-            "c": [5.0, 4.0, 3.0, 2.0, 1.0],  # Perfectly anti-correlated with a
-        })
+        features = pl.DataFrame(
+            {
+                "a": [1.0, 2.0, 3.0, 4.0, 5.0],
+                "b": [1.0, 2.0, 3.0, 4.0, 5.0],  # Perfectly correlated with a
+                "c": [5.0, 4.0, 3.0, 2.0, 1.0],  # Perfectly anti-correlated with a
+            }
+        )
 
         result = spearman_matrix(features)
 
@@ -43,10 +45,12 @@ class TestSpearmanMatrix:
     def test_diagonal_is_one(self) -> None:
         """Test diagonal values are 1.0."""
         np.random.seed(42)
-        features = pl.DataFrame({
-            "x": np.random.randn(100),
-            "y": np.random.randn(100),
-        })
+        features = pl.DataFrame(
+            {
+                "x": np.random.randn(100),
+                "y": np.random.randn(100),
+            }
+        )
 
         result = spearman_matrix(features)
 
@@ -59,11 +63,13 @@ class TestSpearmanMatrix:
     def test_symmetric_matrix(self) -> None:
         """Test matrix is symmetric."""
         np.random.seed(42)
-        features = pl.DataFrame({
-            "a": np.random.randn(100),
-            "b": np.random.randn(100),
-            "c": np.random.randn(100),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(100),
+                "b": np.random.randn(100),
+                "c": np.random.randn(100),
+            }
+        )
 
         result = spearman_matrix(features)
 
@@ -78,10 +84,12 @@ class TestSpearmanMatrix:
 
     def test_handles_nan_pairwise(self) -> None:
         """Test NaN handling with pairwise deletion."""
-        features = pl.DataFrame({
-            "a": [1.0, 2.0, np.nan, 4.0, 5.0],
-            "b": [1.0, 2.0, 3.0, 4.0, 5.0],
-        })
+        features = pl.DataFrame(
+            {
+                "a": [1.0, 2.0, np.nan, 4.0, 5.0],
+                "b": [1.0, 2.0, 3.0, 4.0, 5.0],
+            }
+        )
 
         result = spearman_matrix(features, drop_na=True)
 
@@ -95,10 +103,12 @@ class TestSpearmanMatrix:
         np.random.seed(42)
         n = 1000
 
-        features = pl.DataFrame({
-            "x": np.random.randn(n),
-            "y": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "x": np.random.randn(n),
+                "y": np.random.randn(n),
+            }
+        )
 
         result = spearman_matrix(features)
 
@@ -111,10 +121,12 @@ class TestPearsonMatrix:
 
     def test_basic_calculation(self) -> None:
         """Test basic Pearson correlation."""
-        features = pl.DataFrame({
-            "a": [1.0, 2.0, 3.0, 4.0, 5.0],
-            "b": [2.0, 4.0, 6.0, 8.0, 10.0],  # Linear relationship
-        })
+        features = pl.DataFrame(
+            {
+                "a": [1.0, 2.0, 3.0, 4.0, 5.0],
+                "b": [2.0, 4.0, 6.0, 8.0, 10.0],  # Linear relationship
+            }
+        )
 
         result = pearson_matrix(features)
 
@@ -128,12 +140,14 @@ class TestHighlyCorrelatedPairs:
     def test_finds_correlated_pairs(self) -> None:
         """Test finding highly correlated pairs."""
         # Create correlation matrix
-        corr = pl.DataFrame({
-            "feature": ["a", "b", "c"],
-            "a": [1.0, 0.95, 0.1],
-            "b": [0.95, 1.0, 0.2],
-            "c": [0.1, 0.2, 1.0],
-        })
+        corr = pl.DataFrame(
+            {
+                "feature": ["a", "b", "c"],
+                "a": [1.0, 0.95, 0.1],
+                "b": [0.95, 1.0, 0.2],
+                "c": [0.1, 0.2, 1.0],
+            }
+        )
 
         result = highly_correlated_pairs(corr, threshold=0.8)
 
@@ -145,22 +159,26 @@ class TestHighlyCorrelatedPairs:
 
     def test_no_pairs_below_threshold(self) -> None:
         """Test returns empty when no pairs above threshold."""
-        corr = pl.DataFrame({
-            "feature": ["a", "b"],
-            "a": [1.0, 0.3],
-            "b": [0.3, 1.0],
-        })
+        corr = pl.DataFrame(
+            {
+                "feature": ["a", "b"],
+                "a": [1.0, 0.3],
+                "b": [0.3, 1.0],
+            }
+        )
 
         result = highly_correlated_pairs(corr, threshold=0.8)
         assert len(result) == 0
 
     def test_negative_correlation(self) -> None:
         """Test finds negatively correlated pairs."""
-        corr = pl.DataFrame({
-            "feature": ["a", "b"],
-            "a": [1.0, -0.9],
-            "b": [-0.9, 1.0],
-        })
+        corr = pl.DataFrame(
+            {
+                "feature": ["a", "b"],
+                "a": [1.0, -0.9],
+                "b": [-0.9, 1.0],
+            }
+        )
 
         result = highly_correlated_pairs(corr, threshold=0.8)
         assert len(result) == 1
@@ -173,13 +191,15 @@ class TestClusterFeatures:
     def test_basic_clustering(self) -> None:
         """Test basic feature clustering."""
         # Create correlation matrix with clear clusters
-        corr = pl.DataFrame({
-            "feature": ["a1", "a2", "b1", "b2"],
-            "a1": [1.0, 0.9, 0.1, 0.1],
-            "a2": [0.9, 1.0, 0.1, 0.1],
-            "b1": [0.1, 0.1, 1.0, 0.9],
-            "b2": [0.1, 0.1, 0.9, 1.0],
-        })
+        corr = pl.DataFrame(
+            {
+                "feature": ["a1", "a2", "b1", "b2"],
+                "a1": [1.0, 0.9, 0.1, 0.1],
+                "a2": [0.9, 1.0, 0.1, 0.1],
+                "b1": [0.1, 0.1, 1.0, 0.9],
+                "b2": [0.1, 0.1, 0.9, 1.0],
+            }
+        )
 
         result = cluster_features(corr)
 

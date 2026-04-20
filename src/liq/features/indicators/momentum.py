@@ -57,14 +57,8 @@ class RSI(BaseIndicator):
         # Separate gains and losses
         delta = delta.with_columns(
             [
-                pl.when(pl.col("delta") > 0)
-                .then(pl.col("delta"))
-                .otherwise(0)
-                .alias("gain"),
-                pl.when(pl.col("delta") < 0)
-                .then(-pl.col("delta"))
-                .otherwise(0)
-                .alias("loss"),
+                pl.when(pl.col("delta") > 0).then(pl.col("delta")).otherwise(0).alias("gain"),
+                pl.when(pl.col("delta") < 0).then(-pl.col("delta")).otherwise(0).alias("loss"),
             ]
         )
 
@@ -138,9 +132,7 @@ class MACD(BaseIndicator):
         )
 
         # MACD line = fast EMA - slow EMA
-        result = result.with_columns(
-            [(pl.col("ema_fast") - pl.col("ema_slow")).alias("macd")]
-        )
+        result = result.with_columns([(pl.col("ema_fast") - pl.col("ema_slow")).alias("macd")])
 
         # Signal line = EMA of MACD
         result = result.with_columns(
@@ -148,9 +140,7 @@ class MACD(BaseIndicator):
         )
 
         # Histogram = MACD - Signal
-        result = result.with_columns(
-            [(pl.col("macd") - pl.col("signal")).alias("histogram")]
-        )
+        result = result.with_columns([(pl.col("macd") - pl.col("signal")).alias("histogram")])
 
         # Filter warmup and return
         return (
@@ -228,9 +218,8 @@ class Stochastic(BaseIndicator):
         )
 
         # Filter warmup and return
-        return (
-            result.select(["ts", "stoch_k", "stoch_d"])
-            .filter(pl.col("stoch_k").is_not_nan() & pl.col("stoch_d").is_not_nan())
+        return result.select(["ts", "stoch_k", "stoch_d"]).filter(
+            pl.col("stoch_k").is_not_nan() & pl.col("stoch_d").is_not_nan()
         )
 
 
@@ -318,15 +307,11 @@ class Stochastic_Midrange(BaseIndicator):
         # Compute midrange if not present
         if input_col not in df.columns:
             if "high" in df.columns and "low" in df.columns:
-                df = df.with_columns(
-                    [((pl.col("high") + pl.col("low")) / 2).alias(input_col)]
-                )
+                df = df.with_columns([((pl.col("high") + pl.col("low")) / 2).alias(input_col)])
             else:
                 # If explicit midrange values are provided, continue with those.
                 # Otherwise fail explicitly to surface missing source columns.
-                raise KeyError(
-                    f"Input column '{input_col}' not found and high/low are unavailable"
-                )
+                raise KeyError(f"Input column '{input_col}' not found and high/low are unavailable")
 
         source = pl.col(input_col)
 
@@ -362,7 +347,6 @@ class Stochastic_Midrange(BaseIndicator):
         )
 
         # Filter warmup and return
-        return (
-            result.select(["ts", "stoch_k", "stoch_d"])
-            .filter(pl.col("stoch_k").is_not_nan() & pl.col("stoch_d").is_not_nan())
+        return result.select(["ts", "stoch_k", "stoch_d"]).filter(
+            pl.col("stoch_k").is_not_nan() & pl.col("stoch_d").is_not_nan()
         )

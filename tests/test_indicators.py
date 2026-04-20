@@ -48,14 +48,16 @@ class TestBaseIndicator:
         store = ParquetStore(str(tmp_path))
         indicator = EchoIndicator(storage=store, input_column="midrange")
 
-        df = pl.DataFrame({
-            "ts": [
-                datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
-                datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
-            ],
-            "close": [1.0, 1.1],
-            "midrange": [2.0, 2.1],
-        })
+        df = pl.DataFrame(
+            {
+                "ts": [
+                    datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                ],
+                "close": [1.0, 1.1],
+                "midrange": [2.0, 2.1],
+            }
+        )
 
         out1 = indicator.compute(df, symbol="EUR_USD", timeframe="1m")
         assert out1["value"].to_list() == [2.0, 2.1]  # input column override applied
@@ -103,18 +105,24 @@ class TestIndicatorRegistry:
         assert "ema" in names
         assert "macd" in names
 
-    def test_list_indicators_merges_dynamic_backend_when_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_list_indicators_merges_dynamic_backend_when_available(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Simulate dynamic backend availability and ensure merged listing."""
         from liq.features.indicators import liq_ta as liq_ta_mod
         from liq.features.indicators import registry
 
-        monkeypatch.setattr(liq_ta_mod, "list_dynamic_indicators", lambda: [
-            {
-                "name": "ta_dummy",
-                "display_name": "TA Dummy",
-                "parameters": {"timeperiod": 10},
-            }
-        ])
+        monkeypatch.setattr(
+            liq_ta_mod,
+            "list_dynamic_indicators",
+            lambda: [
+                {
+                    "name": "ta_dummy",
+                    "display_name": "TA Dummy",
+                    "parameters": {"timeperiod": 10},
+                }
+            ],
+        )
 
         indicators = registry.list_indicators()
         names = {ind["name"] for ind in indicators}
@@ -439,9 +447,7 @@ class TestMidrangeIndicators:
         assert atr_mr.params["period"] == 14
         assert atr_mr.params["input_column"] == "midrange"
 
-    def test_atr_midrange_computes_correctly(
-        self, sample_ohlc_df_large: pl.DataFrame
-    ) -> None:
+    def test_atr_midrange_computes_correctly(self, sample_ohlc_df_large: pl.DataFrame) -> None:
         """Test ATR_Midrange computation uses midrange price."""
         from liq.features.indicators.trend import ATR_Midrange
 
@@ -455,9 +461,7 @@ class TestMidrangeIndicators:
         assert all(v >= 0 for v in values.to_list())
         assert len(result) > 0
 
-    def test_atr_midrange_uses_midrange(
-        self, sample_ohlc_df_large: pl.DataFrame
-    ) -> None:
+    def test_atr_midrange_uses_midrange(self, sample_ohlc_df_large: pl.DataFrame) -> None:
         """Test ATR_Midrange actually uses midrange in calculation."""
         from liq.features.indicators.trend import ATR, ATR_Midrange
 
@@ -485,9 +489,7 @@ class TestMidrangeIndicators:
         assert adx_mr.params["period"] == 14
         assert adx_mr.params["input_column"] == "midrange"
 
-    def test_adx_midrange_computes_correctly(
-        self, sample_ohlc_df_large: pl.DataFrame
-    ) -> None:
+    def test_adx_midrange_computes_correctly(self, sample_ohlc_df_large: pl.DataFrame) -> None:
         """Test ADX_Midrange computation."""
         from liq.features.indicators.trend import ADX_Midrange
 

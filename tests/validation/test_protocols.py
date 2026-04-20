@@ -28,9 +28,7 @@ class TestValidatorProtocol:
 
     def test_protocol_is_runtime_checkable(self) -> None:
         """Validator protocol should be runtime checkable."""
-        assert hasattr(Validator, "__protocol_attrs__") or hasattr(
-            Validator, "__subclasshook__"
-        )
+        assert hasattr(Validator, "__protocol_attrs__") or hasattr(Validator, "__subclasshook__")
 
     def test_valid_implementation_satisfies_protocol(self) -> None:
         """A class with validate method should satisfy Validator."""
@@ -127,9 +125,7 @@ class TestTemporalAnalyzerProtocol:
                     n_windows=5,
                     window_starts=[0, 100, 200, 300, 400],
                     mi_by_window=[dict.fromkeys(features, 0.1) for _ in range(5)],
-                    rank_by_window=[
-                        {f: i for i, f in enumerate(features)} for _ in range(5)
-                    ],
+                    rank_by_window=[{f: i for i, f in enumerate(features)} for _ in range(5)],
                     adjacent_correlations=[0.9, 0.85, 0.88, 0.92],
                     mean_correlation=0.89,
                     min_correlation=0.85,

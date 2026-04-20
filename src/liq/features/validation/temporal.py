@@ -76,9 +76,12 @@ def rolling_mi_analysis(
         InsufficientDataError: If not enough data for windowing.
     """
     log_function_entry(
-        logger, "rolling_mi_analysis",
-        window_size=window_size, step_size=step_size,
-        n_neighbors=n_neighbors, regime_threshold=regime_threshold,
+        logger,
+        "rolling_mi_analysis",
+        window_size=window_size,
+        step_size=step_size,
+        n_neighbors=n_neighbors,
+        regime_threshold=regime_threshold,
     )
 
     # Validate parameters
@@ -207,12 +210,15 @@ def rolling_mi_analysis(
 
     logger.info(f"Rolling MI analysis: {n_windows} windows, window_size={window_size}")
     log_result(
-        logger, "Temporal stability analysis complete",
-        n_windows=n_windows, mean_correlation=f"{mean_correlation:.4f}",
+        logger,
+        "Temporal stability analysis complete",
+        n_windows=n_windows,
+        mean_correlation=f"{mean_correlation:.4f}",
         n_regime_changes=len(regime_changes),
     )
     log_function_exit(
-        logger, "rolling_mi_analysis",
+        logger,
+        "rolling_mi_analysis",
         f"mean_rho={mean_correlation:.4f}, regime_changes={len(regime_changes)}",
     )
 

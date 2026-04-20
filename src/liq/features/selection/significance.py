@@ -66,9 +66,7 @@ def _compute_mi_from_arrays(
 
     # sklearn expects 2D feature array
     x_2d = x.reshape(-1, 1)
-    mi = mutual_info_regression(
-        x_2d, y, n_neighbors=n_neighbors, random_state=random_state
-    )
+    mi = mutual_info_regression(x_2d, y, n_neighbors=n_neighbors, random_state=random_state)
     return float(mi[0])
 
 
@@ -77,9 +75,7 @@ def _get_valid_mask(
     y: NDArray[np.floating],
 ) -> NDArray[np.bool_]:
     """Get mask for valid (non-NaN, non-inf) entries in both arrays."""
-    return (
-        ~np.isnan(x) & ~np.isnan(y) & ~np.isinf(x) & ~np.isinf(y)
-    )
+    return ~np.isnan(x) & ~np.isnan(y) & ~np.isinf(x) & ~np.isinf(y)
 
 
 def bootstrap_mi(
@@ -299,10 +295,7 @@ def paired_bootstrap_difference(
     y_midrange_arr = to_numpy_float64(y_midrange)
 
     # Get valid indices (must be valid for all three arrays)
-    valid_mask = (
-        _get_valid_mask(x_arr, y_close_arr) &
-        _get_valid_mask(x_arr, y_midrange_arr)
-    )
+    valid_mask = _get_valid_mask(x_arr, y_close_arr) & _get_valid_mask(x_arr, y_midrange_arr)
     n_valid = valid_mask.sum()
 
     if n_valid < 100:
@@ -395,6 +388,7 @@ def batch_bootstrap_mi(
 
     if n_jobs is None:
         import os
+
         n_jobs = os.cpu_count() or 1
 
     results: list[BootstrapResult] = []
@@ -403,7 +397,9 @@ def batch_bootstrap_mi(
     def process_feature(feat: str, seed: int) -> BootstrapResult | None:
         try:
             return bootstrap_mi(
-                X, y, feat,
+                X,
+                y,
+                feat,
                 n_bootstrap=n_bootstrap,
                 confidence_level=confidence_level,
                 n_neighbors=n_neighbors,
@@ -470,6 +466,7 @@ def batch_permutation_test(
 
     if n_jobs is None:
         import os
+
         n_jobs = os.cpu_count() or 1
 
     results: list[PermutationResult] = []
@@ -478,7 +475,9 @@ def batch_permutation_test(
     def process_feature(feat: str, seed: int) -> PermutationResult | None:
         try:
             return permutation_test_mi(
-                X, y, feat,
+                X,
+                y,
+                feat,
                 n_permutations=n_permutations,
                 n_neighbors=n_neighbors,
                 random_state=seed,
@@ -546,6 +545,7 @@ def batch_paired_difference(
 
     if n_jobs is None:
         import os
+
         n_jobs = os.cpu_count() or 1
 
     results: list[PairedDifferenceResult] = []
@@ -554,7 +554,10 @@ def batch_paired_difference(
     def process_feature(feat: str, seed: int) -> PairedDifferenceResult | None:
         try:
             return paired_bootstrap_difference(
-                X, y_close, y_midrange, feat,
+                X,
+                y_close,
+                y_midrange,
+                feat,
                 n_bootstrap=n_bootstrap,
                 confidence_level=confidence_level,
                 n_neighbors=n_neighbors,
@@ -687,12 +690,15 @@ def run_significance_analysis(
         def callback(current: int, total: int):
             if progress_callback:
                 progress_callback(stage, current, total)
+
         return callback
 
     # Stage 1: Bootstrap CI for close
     logger.info(f"Running bootstrap CI for close target ({len(features)} features)")
     report.close_bootstrap = batch_bootstrap_mi(
-        X, y_close, features,
+        X,
+        y_close,
+        features,
         n_bootstrap=n_bootstrap,
         confidence_level=confidence_level,
         n_neighbors=n_neighbors,
@@ -704,7 +710,9 @@ def run_significance_analysis(
     # Stage 2: Bootstrap CI for midrange
     logger.info(f"Running bootstrap CI for midrange target ({len(features)} features)")
     report.midrange_bootstrap = batch_bootstrap_mi(
-        X, y_midrange, features,
+        X,
+        y_midrange,
+        features,
         n_bootstrap=n_bootstrap,
         confidence_level=confidence_level,
         n_neighbors=n_neighbors,
@@ -716,7 +724,9 @@ def run_significance_analysis(
     # Stage 3: Permutation test for close
     logger.info(f"Running permutation tests for close target ({len(features)} features)")
     report.close_permutation = batch_permutation_test(
-        X, y_close, features,
+        X,
+        y_close,
+        features,
         n_permutations=n_permutations,
         n_neighbors=n_neighbors,
         random_state=random_state + 2000,
@@ -727,7 +737,9 @@ def run_significance_analysis(
     # Stage 4: Permutation test for midrange
     logger.info(f"Running permutation tests for midrange target ({len(features)} features)")
     report.midrange_permutation = batch_permutation_test(
-        X, y_midrange, features,
+        X,
+        y_midrange,
+        features,
         n_permutations=n_permutations,
         n_neighbors=n_neighbors,
         random_state=random_state + 3000,
@@ -738,7 +750,10 @@ def run_significance_analysis(
     # Stage 5: Paired difference tests
     logger.info(f"Running paired difference tests ({len(features)} features)")
     report.paired_results = batch_paired_difference(
-        X, y_close, y_midrange, features,
+        X,
+        y_close,
+        y_midrange,
+        features,
         n_bootstrap=n_bootstrap,
         confidence_level=confidence_level,
         n_neighbors=n_neighbors,
@@ -754,6 +769,8 @@ def run_significance_analysis(
         report.fdr_significant = significant
         report.fdr_adjusted_p_values = adjusted
 
-    logger.info(f"Significance analysis complete: {report.n_significant_paired_fdr}/{len(features)} significant after FDR")
+    logger.info(
+        f"Significance analysis complete: {report.n_significant_paired_fdr}/{len(features)} significant after FDR"
+    )
 
     return report

@@ -46,15 +46,11 @@ class TestMISensitivityAnalysis:
         """Should return SensitivityResult."""
         X, y = synthetic_data
 
-        result = mi_sensitivity_analysis(
-            X, y, feature="feature_a", k_values=[1, 3, 5, 7]
-        )
+        result = mi_sensitivity_analysis(X, y, feature="feature_a", k_values=[1, 3, 5, 7])
 
         assert isinstance(result, SensitivityResult)
 
-    def test_mi_values_for_each_k(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_mi_values_for_each_k(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should compute MI for each k value."""
         X, y = synthetic_data
         k_values = [1, 3, 5, 7]
@@ -71,9 +67,7 @@ class TestMISensitivityAnalysis:
         """Informative feature should have positive MI at all k values."""
         X, y = synthetic_data
 
-        result = mi_sensitivity_analysis(
-            X, y, feature="feature_a", k_values=[1, 3, 5, 7]
-        )
+        result = mi_sensitivity_analysis(X, y, feature="feature_a", k_values=[1, 3, 5, 7])
 
         for mi in result.mi_values:
             assert mi > 0, "MI should be positive for informative feature"
@@ -84,24 +78,16 @@ class TestMISensitivityAnalysis:
         """Noise feature should have lower MI than informative feature."""
         X, y = synthetic_data
 
-        result_a = mi_sensitivity_analysis(
-            X, y, feature="feature_a", k_values=[3]
-        )
-        result_b = mi_sensitivity_analysis(
-            X, y, feature="feature_b", k_values=[3]
-        )
+        result_a = mi_sensitivity_analysis(X, y, feature="feature_a", k_values=[3])
+        result_b = mi_sensitivity_analysis(X, y, feature="feature_b", k_values=[3])
 
         assert result_a.mean_mi > result_b.mean_mi
 
-    def test_coefficient_of_variation(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_coefficient_of_variation(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """CV should be computed correctly."""
         X, y = synthetic_data
 
-        result = mi_sensitivity_analysis(
-            X, y, feature="feature_a", k_values=[1, 3, 5, 7]
-        )
+        result = mi_sensitivity_analysis(X, y, feature="feature_a", k_values=[1, 3, 5, 7])
 
         expected_cv = result.std_mi / result.mean_mi if result.mean_mi > 0 else 0
         assert abs(result.cv_mi - expected_cv) < 0.01
@@ -112,9 +98,7 @@ class TestMISensitivityAnalysis:
         """Stable features should have is_stable=True."""
         X, y = synthetic_data
 
-        result = mi_sensitivity_analysis(
-            X, y, feature="feature_a", k_values=[1, 3, 5, 7]
-        )
+        result = mi_sensitivity_analysis(X, y, feature="feature_a", k_values=[1, 3, 5, 7])
 
         # For a strongly correlated feature, MI should be fairly stable
         # CV < 0.2 is reasonable for most cases
@@ -136,15 +120,11 @@ class TestMISensitivityAnalysis:
 
         assert result1.mi_values == result2.mi_values
 
-    def test_custom_k_values(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_custom_k_values(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should work with custom k values."""
         X, y = synthetic_data
 
-        result = mi_sensitivity_analysis(
-            X, y, feature="feature_a", k_values=[2, 4, 6, 8, 10]
-        )
+        result = mi_sensitivity_analysis(X, y, feature="feature_a", k_values=[2, 4, 6, 8, 10])
 
         assert len(result.mi_values) == 5
         assert result.parameter_values == [2, 4, 6, 8, 10]
@@ -166,11 +146,13 @@ class TestBatchSensitivityAnalysis:
         # y depends on x1 and x2, not x3
         y = 0.6 * x1 + 0.3 * x2 + rng.normal(0, 0.3, n)
 
-        df = pl.DataFrame({
-            "feature_1": x1,  # Most informative
-            "feature_2": x2,  # Less informative
-            "feature_3": x3,  # Noise
-        })
+        df = pl.DataFrame(
+            {
+                "feature_1": x1,  # Most informative
+                "feature_2": x2,  # Less informative
+                "feature_3": x3,  # Noise
+            }
+        )
         target = pl.Series("target", y)
 
         return df, target

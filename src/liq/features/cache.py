@@ -382,10 +382,7 @@ class IndicatorCache:
         if index_df.is_empty():
             return 0
         indicators = index_df["indicator"].to_list()
-        matches = [
-            fnmatch.fnmatch(ind.lower(), pattern_lower)
-            for ind in indicators
-        ]
+        matches = [fnmatch.fnmatch(ind.lower(), pattern_lower) for ind in indicators]
         keys = index_df.filter(pl.Series(matches))["key"].to_list()
         for key in keys:
             self._storage.delete(key)
@@ -412,9 +409,11 @@ class IndicatorCache:
     def clear(self) -> None:
         """Clear all cache entries."""
         index_df = self._load_index() if self._index_enabled else pl.DataFrame()
-        keys = index_df["key"].to_list() if not index_df.is_empty() else [
-            k for k in self._storage.list_keys() if "/indicators/" in k
-        ]
+        keys = (
+            index_df["key"].to_list()
+            if not index_df.is_empty()
+            else [k for k in self._storage.list_keys() if "/indicators/" in k]
+        )
         for key in keys:
             self._storage.delete(key)
         if self._index_enabled and self._storage.exists(self._index_key):
@@ -429,9 +428,11 @@ class IndicatorCache:
                 - total_size_bytes: Total size of cache in bytes
         """
         index_df = self._load_index() if self._index_enabled else pl.DataFrame()
-        keys = index_df["key"].to_list() if not index_df.is_empty() else [
-            k for k in self._storage.list_keys() if "/indicators/" in k
-        ]
+        keys = (
+            index_df["key"].to_list()
+            if not index_df.is_empty()
+            else [k for k in self._storage.list_keys() if "/indicators/" in k]
+        )
         total_size = 0
         for key in keys:
             try:
@@ -558,9 +559,9 @@ class IndicatorCache:
         # Apply limit and offset from filter
         if filters is not None:
             if filters.offset > 0:
-                entries = entries[filters.offset:]
+                entries = entries[filters.offset :]
             if filters.limit is not None:
-                entries = entries[:filters.limit]
+                entries = entries[: filters.limit]
 
         return entries
 

@@ -93,10 +93,14 @@ def spearman_matrix(
             corr_matrix = np.array([[1.0, corr_matrix], [corr_matrix, 1.0]])
 
     # Create DataFrame with feature names
-    result = pl.DataFrame(
-        corr_matrix,
-        schema=list(feature_names),
-    ).with_columns(pl.Series("feature", feature_names)).select(["feature", *feature_names])
+    result = (
+        pl.DataFrame(
+            corr_matrix,
+            schema=list(feature_names),
+        )
+        .with_columns(pl.Series("feature", feature_names))
+        .select(["feature", *feature_names])
+    )
 
     return result
 
@@ -128,10 +132,14 @@ def pearson_matrix(
 
     corr_matrix = np.corrcoef(X_np, rowvar=False)
 
-    result = pl.DataFrame(
-        corr_matrix,
-        schema=list(feature_names),
-    ).with_columns(pl.Series("feature", feature_names)).select(["feature", *feature_names])
+    result = (
+        pl.DataFrame(
+            corr_matrix,
+            schema=list(feature_names),
+        )
+        .with_columns(pl.Series("feature", feature_names))
+        .select(["feature", *feature_names])
+    )
 
     return result
 
@@ -163,11 +171,13 @@ def highly_correlated_pairs(
             corr_value = corr_matrix.filter(pl.col("feature") == f1)[f2].item()
 
             if corr_value is not None and abs(corr_value) >= threshold:
-                pairs.append({
-                    "feature_1": f1,
-                    "feature_2": f2,
-                    "correlation": corr_value,
-                })
+                pairs.append(
+                    {
+                        "feature_1": f1,
+                        "feature_2": f2,
+                        "correlation": corr_value,
+                    }
+                )
 
     if not pairs:
         return pl.DataFrame(
@@ -218,7 +228,9 @@ def cluster_features(
     # Default: cut where distance > 0.5 (correlation < 0.5)
     clusters = fcluster(Z, t=0.5, criterion="distance")
 
-    return pl.DataFrame({
-        "feature": feature_names,
-        "cluster": clusters,
-    }).sort("cluster")
+    return pl.DataFrame(
+        {
+            "feature": feature_names,
+            "cluster": clusters,
+        }
+    ).sort("cluster")

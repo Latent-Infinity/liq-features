@@ -72,10 +72,12 @@ def _compute_relevance_from_numpy(
     # Handle NaN in y
     y_valid_mask = ~np.isnan(y_np)
     if y_valid_mask.sum() < 2:
-        return pl.DataFrame({
-            "feature": feature_names,
-            "relevance": [0.0] * n_features,
-        })
+        return pl.DataFrame(
+            {
+                "feature": feature_names,
+                "relevance": [0.0] * n_features,
+            }
+        )
 
     # Pre-allocate result array (§2 Memory Efficiency)
     relevance_scores = np.zeros(n_features, dtype=np.float64)
@@ -102,7 +104,12 @@ def _compute_relevance_from_numpy(
 
         # Use epsilon for float comparison (§19 Float Comparisons)
         # Also check for non-finite std (can happen with extreme values)
-        if x_std < _FLOAT_EPS or y_std < _FLOAT_EPS or not np.isfinite(x_std) or not np.isfinite(y_std):
+        if (
+            x_std < _FLOAT_EPS
+            or y_std < _FLOAT_EPS
+            or not np.isfinite(x_std)
+            or not np.isfinite(y_std)
+        ):
             continue  # Constant feature or target subset
 
         # Pearson correlation via vectorized ops
@@ -114,10 +121,12 @@ def _compute_relevance_from_numpy(
         if np.isfinite(corr):
             relevance_scores[i] = min(abs(corr), 1.0)
 
-    return pl.DataFrame({
-        "feature": feature_names,
-        "relevance": relevance_scores.tolist(),
-    })
+    return pl.DataFrame(
+        {
+            "feature": feature_names,
+            "relevance": relevance_scores.tolist(),
+        }
+    )
 
 
 def _compute_correlation_matrix_from_numpy(
@@ -330,9 +339,7 @@ def mrmr_select(
 
     # Pre-filter features if too many (memory optimization)
     if max_features > 0 and n_features > max_features:
-        logger.info(
-            f"Pre-filtering {n_features} features to top {max_features} by MI score"
-        )
+        logger.info(f"Pre-filtering {n_features} features to top {max_features} by MI score")
 
         if mi_scores is None:
             # Compute MI scores on-the-fly
@@ -357,7 +364,9 @@ def mrmr_select(
             if return_scores:
                 return MRMRResult(
                     selected_features=[],
-                    scores=pl.DataFrame({"feature": [], "rank": [], "relevance": [], "redundancy": []}),
+                    scores=pl.DataFrame(
+                        {"feature": [], "rank": [], "relevance": [], "redundancy": []}
+                    ),
                 )
             return []
 
@@ -384,7 +393,9 @@ def mrmr_select(
         logger.info("Computing feature relevance...")
 
     relevance_df = _compute_relevance_from_numpy(X_np, y_np, feature_list)
-    relevance = dict(zip(relevance_df["feature"].to_list(), relevance_df["relevance"].to_list(), strict=False))
+    relevance = dict(
+        zip(relevance_df["feature"].to_list(), relevance_df["relevance"].to_list(), strict=False)
+    )
 
     # Step 2: Compute correlation matrix for redundancy
     if show_progress:
@@ -453,13 +464,15 @@ def mrmr_select(
         selected_set.add(best_feature)
         remaining.remove(best_feature)
 
-        score_records.append({
-            "feature": best_feature,
-            "rank": k + 1,
-            "relevance": best_relevance,
-            "redundancy": best_redundancy,
-            "mrmr_score": best_score,
-        })
+        score_records.append(
+            {
+                "feature": best_feature,
+                "rank": k + 1,
+                "relevance": best_relevance,
+                "redundancy": best_redundancy,
+                "mrmr_score": best_score,
+            }
+        )
 
         if progress_callback:
             progress_callback(k + 1, K)

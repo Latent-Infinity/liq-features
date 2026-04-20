@@ -64,8 +64,10 @@ def mi_sensitivity_analysis(
         k_values = [1, 3, 5, 7]
 
     log_function_entry(
-        logger, "mi_sensitivity_analysis",
-        feature=feature, k_values=k_values,
+        logger,
+        "mi_sensitivity_analysis",
+        feature=feature,
+        k_values=k_values,
     )
 
     # Validate k values
@@ -96,7 +98,8 @@ def mi_sensitivity_analysis(
         log_warning(
             logger,
             "Small sample size may affect MI estimation reliability",
-            n_samples=n_valid, min_recommended=MIN_SAMPLES_WARNING,
+            n_samples=n_valid,
+            min_recommended=MIN_SAMPLES_WARNING,
         )
 
     logger.debug(f"Computing MI at k values {k_values} for feature '{feature}'")
@@ -122,8 +125,10 @@ def mi_sensitivity_analysis(
     rank_correlation = 1.0  # Perfect correlation for single feature
 
     log_result(
-        logger, f"Sensitivity analysis complete for '{feature}'",
-        mean_mi=f"{mean_mi:.4f}", cv=f"{cv_mi:.4f}",
+        logger,
+        f"Sensitivity analysis complete for '{feature}'",
+        mean_mi=f"{mean_mi:.4f}",
+        cv=f"{cv_mi:.4f}",
     )
     log_function_exit(logger, "mi_sensitivity_analysis", f"mean_mi={mean_mi:.4f}")
 

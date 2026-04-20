@@ -208,9 +208,7 @@ class TestIndicatorCache:
         result = cache.get("nonexistent_key")
         assert result is None
 
-    def test_set_and_get(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_set_and_get(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test set stores and get retrieves."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
         key = compute_cache_key(
@@ -619,9 +617,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 3
         assert cache.stats()["entries"] == 0
 
-    def test_clean_by_symbol(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_by_symbol(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean filters by symbol."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
@@ -645,9 +641,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 1
         assert cache.stats()["entries"] == 2
 
-    def test_clean_by_indicator(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_by_indicator(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean filters by indicator."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
@@ -671,9 +665,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 2
         assert cache.stats()["entries"] == 1
 
-    def test_clean_dry_run(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_dry_run(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean with dry_run=True doesn't delete."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
@@ -756,9 +748,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 2  # rsi and macd for BTC_USDT/1h
         assert cache.stats()["entries"] == 2
 
-    def test_clean_no_matches(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_no_matches(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean with criteria that matches nothing."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 

@@ -36,7 +36,9 @@ class CacheEntry(BaseModel):
     created_at: datetime | None = None
 
     @classmethod
-    def from_key(cls, key: str, size_bytes: int = 0, created_at: datetime | None = None) -> CacheEntry | None:
+    def from_key(
+        cls, key: str, size_bytes: int = 0, created_at: datetime | None = None
+    ) -> CacheEntry | None:
         """Parse a cache key into a CacheEntry.
 
         Args:
@@ -120,7 +122,9 @@ class CacheStats(BaseModel):
         self.by_indicator[entry.indicator] = self.by_indicator.get(entry.indicator, 0) + 1
         self.by_timeframe[entry.timeframe] = self.by_timeframe.get(entry.timeframe, 0) + 1
 
-        self.size_by_symbol[entry.symbol] = self.size_by_symbol.get(entry.symbol, 0) + entry.size_bytes
+        self.size_by_symbol[entry.symbol] = (
+            self.size_by_symbol.get(entry.symbol, 0) + entry.size_bytes
+        )
         self.size_by_indicator[entry.indicator] = (
             self.size_by_indicator.get(entry.indicator, 0) + entry.size_bytes
         )

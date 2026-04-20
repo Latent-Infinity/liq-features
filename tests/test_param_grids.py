@@ -1,6 +1,5 @@
 """Tests for indicator parameter grid enumeration."""
 
-
 from liq.features.indicators import (
     DEFAULT_PARAM_GRIDS,
     IndicatorSpec,
@@ -154,9 +153,11 @@ class TestCountCombinations:
 
     def test_multiple_params(self) -> None:
         """Test counting with multiple parameters."""
-        count = count_combinations({
-            "bbands": {"period": [10, 20], "std_dev": [1.5, 2.0]},
-        })
+        count = count_combinations(
+            {
+                "bbands": {"period": [10, 20], "std_dev": [1.5, 2.0]},
+            }
+        )
         assert count == 4  # 2 * 2
 
     def test_empty_params(self) -> None:

@@ -73,9 +73,11 @@ def validate_oos(
         ValueError: If features not found in DataFrame.
     """
     log_function_entry(
-        logger, "validate_oos",
+        logger,
+        "validate_oos",
         n_features=len(features) if features else "all",
-        test_ratio=test_ratio, temporal=temporal,
+        test_ratio=test_ratio,
+        temporal=temporal,
     )
 
     # Validate test_ratio
@@ -182,12 +184,16 @@ def validate_oos(
         spearman_correlation = 1.0  # Single feature always perfectly correlated
 
     log_result(
-        logger, "OOS validation complete",
-        n_features=len(features), spearman_rho=f"{spearman_correlation:.4f}",
-        n_train=n_train, n_test=n_test,
+        logger,
+        "OOS validation complete",
+        n_features=len(features),
+        spearman_rho=f"{spearman_correlation:.4f}",
+        n_train=n_train,
+        n_test=n_test,
     )
     log_function_exit(
-        logger, "validate_oos",
+        logger,
+        "validate_oos",
         f"spearman_rho={spearman_correlation:.4f}",
     )
 

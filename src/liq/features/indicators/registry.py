@@ -109,9 +109,7 @@ def get_indicator(name: str) -> type[BaseIndicator]:
     # List available indicators in error message
     available = list(_HARDCODED_INDICATORS.keys())[:10]
     raise ValueError(
-        f"Unknown indicator: {name}. "
-        f"Available: {available}... "
-        f"Use list_indicators() for full list."
+        f"Unknown indicator: {name}. Available: {available}... Use list_indicators() for full list."
     )
 
 
@@ -182,7 +180,12 @@ def _build_metadata_parameter_specs(
     parameters: list[dict[str, Any]] = []
     for param_name, default_value in default_params.items():
         allowed = _sorted_discrete_values(allowed_grid.get(param_name)) or []
-        if default_value not in allowed and allowed and isinstance(default_value, (int, float)) and not isinstance(default_value, bool):
+        if (
+            default_value not in allowed
+            and allowed
+            and isinstance(default_value, (int, float))
+            and not isinstance(default_value, bool)
+        ):
             if isinstance(default_value, float):
                 allowed = sorted({*allowed, float(default_value)})
             else:

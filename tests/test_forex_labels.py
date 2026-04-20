@@ -8,12 +8,14 @@ from liq.features.forex_labels import make_forex_labels
 def _sample_df(rows: int) -> pl.DataFrame:
     ts0 = datetime(2024, 1, 1, tzinfo=UTC)
     base = [1.0000 + i * 0.001 for i in range(rows)]
-    return pl.DataFrame({
-        "timestamp": [ts0 + timedelta(hours=i) for i in range(rows)],
-        "high": [v + 0.001 for v in base],
-        "low": [v - 0.001 for v in base],
-        "close": base,
-    })
+    return pl.DataFrame(
+        {
+            "timestamp": [ts0 + timedelta(hours=i) for i in range(rows)],
+            "high": [v + 0.001 for v in base],
+            "low": [v - 0.001 for v in base],
+            "close": base,
+        }
+    )
 
 
 def test_make_forex_labels_direction() -> None:

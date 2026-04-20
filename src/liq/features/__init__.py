@@ -37,6 +37,7 @@ Example:
 """
 
 from liq.features.aggregation import Aggregator, aggregate_to_timeframe
+from liq.features.alignment import align_feature_frame, align_feature_frames, align_higher_timeframe
 from liq.features.batch import cache_stats, compute_indicators
 from liq.features.cache import CacheManager, IndicatorCache
 from liq.features.cache_exceptions import (
@@ -72,6 +73,14 @@ from liq.features.labels import (
     triple_barrier_labels,
     triple_barrier_labels_adaptive,
 )
+from liq.features.microstructure import (
+    build_funding_features,
+    build_open_interest_features,
+    build_order_book_features,
+    build_quote_features,
+    build_trade_bar_features,
+    corwin_schultz_spread,
+)
 from liq.features.params import format_params_key, hash_params, normalize_params
 from liq.features.quantization import (
     INDICATOR_SCALES,
@@ -102,6 +111,7 @@ except Exception as exc:  # pragma: no cover - exercised through import-path fai
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
 
+
 __all__ = [
     # Cache management
     "CacheManager",
@@ -131,9 +141,18 @@ __all__ = [
     "map_labels_to_binary",
     "triple_barrier_labels",
     "triple_barrier_labels_adaptive",
+    "corwin_schultz_spread",
+    "build_quote_features",
+    "build_trade_bar_features",
+    "build_order_book_features",
+    "build_funding_features",
+    "build_open_interest_features",
     # Aggregation
     "Aggregator",
     "aggregate_to_timeframe",
+    "align_higher_timeframe",
+    "align_feature_frame",
+    "align_feature_frames",
     # Batch computation
     "compute_indicators",
     "cache_stats",

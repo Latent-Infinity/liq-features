@@ -49,12 +49,14 @@ class TestMRMRSelect:
         np.random.seed(42)
         n = 200
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-            "c": np.random.randn(n),
-            "d": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+                "c": np.random.randn(n),
+                "d": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", np.random.randn(n))
 
         selected = mrmr_select(features, target, K=2)
@@ -68,10 +70,12 @@ class TestMRMRSelect:
         np.random.seed(42)
         n = 100
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", np.random.randn(n))
 
         # K=10 but only 2 features
@@ -83,10 +87,12 @@ class TestMRMRSelect:
         np.random.seed(42)
         n = 200
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", np.random.randn(n))
 
         result = mrmr_select(features, target, K=2, return_scores=True)
@@ -129,11 +135,13 @@ class TestMRMRSelect:
         np.random.seed(42)
         n = 200
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-            "c": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+                "c": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", np.random.randn(n))
 
         # Run twice
@@ -152,10 +160,12 @@ class TestMRMRClassif:
         np.random.seed(42)
         n = 200
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+            }
+        )
         # Binary classification target
         target = pl.Series("y", np.random.randint(0, 2, n))
 
@@ -169,10 +179,12 @@ class TestMRMRClassif:
         np.random.seed(42)
         n = 200
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", np.random.randint(0, 3, n))  # 3-class
 
         result = mrmr_classif(features, target, K=2, return_scores=True)
@@ -199,15 +211,18 @@ class TestMRMRNumericalStability:
         np.random.seed(42)
         n = 100
 
-        features = pl.DataFrame({
-            "constant": [5.0] * n,  # Constant feature (std=0)
-            "varying": np.random.randn(n),
-            "also_constant": [0.0] * n,
-        })
+        features = pl.DataFrame(
+            {
+                "constant": [5.0] * n,  # Constant feature (std=0)
+                "varying": np.random.randn(n),
+                "also_constant": [0.0] * n,
+            }
+        )
         target = pl.Series("y", np.random.randn(n))
 
         # Should not raise warnings or errors
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             selected = mrmr_select(features, target, K=2)
@@ -229,6 +244,7 @@ class TestMRMRNumericalStability:
         target = pl.Series("y", np.random.randn(n))
 
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             selected = mrmr_select(features, target, K=2)
@@ -249,6 +265,7 @@ class TestMRMRNumericalStability:
         target = pl.Series("y", np.random.randn(n))
 
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             selected = mrmr_select(features, target, K=2)
@@ -261,15 +278,18 @@ class TestMRMRNumericalStability:
         np.random.seed(42)
         n = 100
 
-        features = pl.DataFrame({
-            "constant": [1.0] * n,
-            "has_nan": [np.nan if i < 5 else np.random.randn() for i in range(n)],
-            "has_inf": [np.inf if i == 0 else np.random.randn() for i in range(n)],
-            "clean": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "constant": [1.0] * n,
+                "has_nan": [np.nan if i < 5 else np.random.randn() for i in range(n)],
+                "has_inf": [np.inf if i == 0 else np.random.randn() for i in range(n)],
+                "clean": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", np.random.randn(n))
 
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             selected = mrmr_select(features, target, K=3)

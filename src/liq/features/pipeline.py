@@ -48,7 +48,9 @@ class FeaturePipeline:
         return {
             "model_type": self.state.model_type,
             "d": self.state.d,
-            "scaling_params": asdict(self.state.scaling_params) if self.state.scaling_params else None,
+            "scaling_params": asdict(self.state.scaling_params)
+            if self.state.scaling_params
+            else None,
         }
 
     @classmethod

@@ -128,8 +128,7 @@ def _check_liq_ta() -> None:
     """Check if liq-ta backend is available."""
     if not HAS_LIQ_TA:
         raise ImportError(
-            "liq-ta is required for dynamic indicators. "
-            "Install with: pip install liq-ta"
+            "liq-ta is required for dynamic indicators. Install with: pip install liq-ta"
         )
 
 
@@ -417,7 +416,9 @@ def _default_for_param(function_name: str, backend_param: str) -> Any:
     return _DEFAULTS_BY_PARAM.get(backend_param)
 
 
-def _public_outputs(function_name: str, backend_outputs: list[str]) -> tuple[list[str], list[int] | None]:
+def _public_outputs(
+    function_name: str, backend_outputs: list[str]
+) -> tuple[list[str], list[int] | None]:
     if function_name == "macd":
         return ["macd", "macdsignal", "macdhist"], None
     if function_name == "stochastic":
@@ -451,7 +452,9 @@ def _build_registry() -> dict[str, dict[str, Any]]:
         raw_outputs = meta.get("outputs", [])
         backend_outputs = list(raw_outputs) if isinstance(raw_outputs, (list, tuple)) else []
         raw_inputs = meta.get("inputs", [])
-        backend_inputs = [str(value) for value in raw_inputs] if isinstance(raw_inputs, (list, tuple)) else []
+        backend_inputs = (
+            [str(value) for value in raw_inputs] if isinstance(raw_inputs, (list, tuple)) else []
+        )
         category = str(meta.get("category", ""))
         display_name = str(meta.get("name", public_name.upper()))
 
@@ -545,8 +548,7 @@ def get_indicator_metadata(name: str) -> dict[str, Any]:
     if key not in reg:
         available = ", ".join(get_available_indicators()[:10])
         raise ValueError(
-            f"Unknown liq-ta indicator: {name}. "
-            f"Available indicators include: {available}..."
+            f"Unknown liq-ta indicator: {name}. Available indicators include: {available}..."
         )
 
     info = reg[key]
@@ -684,8 +686,23 @@ def _compute_dynamic(
     if price_col not in df.columns:
         price_col = "close"
 
-    inputs = map_inputs(df, entry["input_names"], price_column=price_col, indicator_name=entry["name"])
+    inputs = map_inputs(
+        df, entry["input_names"], price_column=price_col, indicator_name=entry["name"]
+    )
     kwargs = _backend_kwargs(entry, params)
+    if entry.get("_function_name") == "autocorr":
+        lag = kwargs.get("lag")
+        period = kwargs.get("period")
+        if isinstance(lag, int | float) and isinstance(period, int | float):
+            safe_lag = max(1, int(lag))
+            safe_period = max(1, int(period))
+            if safe_period <= safe_lag:
+                safe_period = safe_lag + 1
+            kwargs["lag"] = safe_lag
+            kwargs["period"] = safe_period
+        elif isinstance(lag, int | float):
+            kwargs["lag"] = max(1, int(lag))
+
     default_period = kwargs.get("period")
     args = _backend_args(entry, inputs, default_period=default_period)
 
@@ -724,7 +741,9 @@ def _compute_dynamic(
 
     output_indices = entry.get("_output_indices")
     if output_indices is not None:
-        result_list = list(result_arrays) if isinstance(result_arrays, (tuple, list)) else [result_arrays]
+        result_list = (
+            list(result_arrays) if isinstance(result_arrays, (tuple, list)) else [result_arrays]
+        )
         selected = [result_list[i] for i in output_indices if i < len(result_list)]
         if not selected:
             raise ValueError(f"No outputs selected for indicator {entry['name']}")

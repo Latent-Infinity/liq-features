@@ -43,11 +43,13 @@ class TestMutualInfoScores:
         np.random.seed(42)
         n = 500
 
-        features = pl.DataFrame({
-            "low": np.random.randn(n),
-            "medium": np.random.randn(n),
-            "high": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "low": np.random.randn(n),
+                "medium": np.random.randn(n),
+                "high": np.random.randn(n),
+            }
+        )
 
         # Target correlated with 'high'
         target = pl.Series("y", features["high"].to_numpy() + 0.1 * np.random.randn(n))
@@ -178,10 +180,12 @@ class TestMutualInfoMatrix:
         np.random.seed(42)
         n = 200
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+            }
+        )
 
         result = mutual_info_matrix(features, random_state=42)
 

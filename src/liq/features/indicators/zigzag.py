@@ -11,6 +11,7 @@ from decimal import Decimal
 try:
     Signal = importlib.import_module("liq.signals").Signal
 except ModuleNotFoundError:
+
     @dataclass(frozen=True)
     class Signal:
         """Fallback signal representation for environments without liq-signals installed."""

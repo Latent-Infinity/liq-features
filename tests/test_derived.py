@@ -30,12 +30,14 @@ class TestComputeDerivedFields:
 
     def test_midrange_calculation(self) -> None:
         """Test midrange is (high + low) / 2."""
-        df = pl.DataFrame({
-            "open": [100.0],
-            "high": [110.0],
-            "low": [90.0],
-            "close": [105.0],
-        })
+        df = pl.DataFrame(
+            {
+                "open": [100.0],
+                "high": [110.0],
+                "low": [90.0],
+                "close": [105.0],
+            }
+        )
 
         result = compute_derived_fields(df)
 
@@ -43,12 +45,14 @@ class TestComputeDerivedFields:
 
     def test_range_calculation(self) -> None:
         """Test range is high - low."""
-        df = pl.DataFrame({
-            "open": [100.0],
-            "high": [110.0],
-            "low": [90.0],
-            "close": [105.0],
-        })
+        df = pl.DataFrame(
+            {
+                "open": [100.0],
+                "high": [110.0],
+                "low": [90.0],
+                "close": [105.0],
+            }
+        )
 
         result = compute_derived_fields(df)
 
@@ -56,12 +60,14 @@ class TestComputeDerivedFields:
 
     def test_true_range_calculation(self) -> None:
         """Test true range considers previous close."""
-        df = pl.DataFrame({
-            "open": [100.0, 105.0],
-            "high": [110.0, 108.0],
-            "low": [95.0, 102.0],
-            "close": [105.0, 106.0],
-        })
+        df = pl.DataFrame(
+            {
+                "open": [100.0, 105.0],
+                "high": [110.0, 108.0],
+                "low": [95.0, 102.0],
+                "close": [105.0, 106.0],
+            }
+        )
 
         result = compute_derived_fields(df)
 
@@ -73,10 +79,12 @@ class TestComputeDerivedFields:
 
     def test_missing_columns_raises_error(self) -> None:
         """Test ValueError raised for missing columns."""
-        df = pl.DataFrame({
-            "open": [100.0],
-            "high": [110.0],
-        })
+        df = pl.DataFrame(
+            {
+                "open": [100.0],
+                "high": [110.0],
+            }
+        )
 
         with pytest.raises(ValueError, match="Missing required columns"):
             compute_derived_fields(df)
@@ -87,9 +95,11 @@ class TestComputeReturns:
 
     def test_simple_returns(self) -> None:
         """Test simple return calculation."""
-        df = pl.DataFrame({
-            "close": [100.0, 110.0, 105.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 110.0, 105.0],
+            }
+        )
 
         result = compute_returns(df, column="close", periods=1)
 
@@ -100,9 +110,11 @@ class TestComputeReturns:
 
     def test_multi_period_returns(self) -> None:
         """Test multi-period return calculation."""
-        df = pl.DataFrame({
-            "close": [100.0, 105.0, 110.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 105.0, 110.0],
+            }
+        )
 
         result = compute_returns(df, column="close", periods=2)
 
@@ -114,9 +126,11 @@ class TestComputeReturns:
         """Test log return calculation."""
         import math
 
-        df = pl.DataFrame({
-            "close": [100.0, 110.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 110.0],
+            }
+        )
 
         result = compute_returns(df, column="close", periods=1, log_returns=True)
 
@@ -137,9 +151,11 @@ class TestComputeVolatility:
 
     def test_rolling_volatility(self) -> None:
         """Test rolling volatility calculation."""
-        df = pl.DataFrame({
-            "close": [100.0, 102.0, 98.0, 103.0, 99.0, 104.0, 100.0, 105.0, 101.0, 106.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 102.0, 98.0, 103.0, 99.0, 104.0, 100.0, 105.0, 101.0, 106.0],
+            }
+        )
 
         result = compute_volatility(df, window=5, annualize=False)
 
@@ -151,9 +167,11 @@ class TestComputeVolatility:
 
     def test_annualized_volatility(self) -> None:
         """Test annualized volatility uses correct factor."""
-        df = pl.DataFrame({
-            "close": [100.0] * 30,  # Constant price = 0 volatility
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0] * 30,  # Constant price = 0 volatility
+            }
+        )
 
         result = compute_volatility(df, window=5, annualize=True)
 
@@ -190,9 +208,11 @@ class TestComputeRollingReturns:
         """Test rolling returns with default Fibonacci windows."""
         # Create a large DataFrame to accommodate default windows
         n = 4000
-        df = pl.DataFrame({
-            "close": [100.0 + i * 0.01 for i in range(n)],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0 + i * 0.01 for i in range(n)],
+            }
+        )
 
         result = compute_rolling_returns(df)
 
@@ -204,9 +224,11 @@ class TestComputeRollingReturns:
     def test_rolling_returns_custom_windows(self) -> None:
         """Test rolling returns with custom windows."""
         n = 100
-        df = pl.DataFrame({
-            "close": [100.0 + i * 0.1 for i in range(n)],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0 + i * 0.1 for i in range(n)],
+            }
+        )
 
         result = compute_rolling_returns(df, windows=[10, 20, 30])
 
@@ -221,9 +243,11 @@ class TestComputeRollingReturns:
     def test_rolling_returns_sum_aggregation(self) -> None:
         """Test rolling sum of log returns."""
 
-        df = pl.DataFrame({
-            "close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0],
+            }
+        )
 
         result = compute_rolling_returns(df, windows=[3], aggregations=["sum"])
 
@@ -234,9 +258,11 @@ class TestComputeRollingReturns:
 
     def test_rolling_returns_mean_aggregation(self) -> None:
         """Test rolling mean of log returns."""
-        df = pl.DataFrame({
-            "close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0],
+            }
+        )
 
         result = compute_rolling_returns(df, windows=[3], aggregations=["mean"])
 
@@ -246,9 +272,11 @@ class TestComputeRollingReturns:
 
     def test_rolling_returns_simple_vs_log(self) -> None:
         """Test log returns vs simple returns."""
-        df = pl.DataFrame({
-            "close": [100.0, 110.0, 105.0, 115.0, 110.0, 120.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 110.0, 105.0, 115.0, 110.0, 120.0],
+            }
+        )
 
         result_log = compute_rolling_returns(df, windows=[3], log_returns=True)
         result_simple = compute_rolling_returns(df, windows=[3], log_returns=False)
@@ -266,10 +294,12 @@ class TestComputeRollingReturns:
 
     def test_rolling_returns_custom_column(self) -> None:
         """Test rolling returns with custom column."""
-        df = pl.DataFrame({
-            "close": [100.0, 101.0, 102.0, 103.0, 104.0],
-            "open": [99.0, 100.0, 101.0, 102.0, 103.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0, 103.0, 104.0],
+                "open": [99.0, 100.0, 101.0, 102.0, 103.0],
+            }
+        )
 
         result = compute_rolling_returns(df, column="open", windows=[3])
 
@@ -284,10 +314,13 @@ class TestComputeMultiWindowVolatility:
         # Create large DataFrame to accommodate default windows
         n = 4000
         import random
+
         random.seed(42)
-        df = pl.DataFrame({
-            "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
+            }
+        )
 
         result = compute_multi_window_volatility(df)
 
@@ -299,10 +332,13 @@ class TestComputeMultiWindowVolatility:
         """Test multi-window volatility with custom windows."""
         n = 100
         import random
+
         random.seed(42)
-        df = pl.DataFrame({
-            "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
+            }
+        )
 
         result = compute_multi_window_volatility(df, windows=[10, 20, 30])
 
@@ -313,19 +349,21 @@ class TestComputeMultiWindowVolatility:
     def test_multi_window_volatility_annualized(self) -> None:
         """Test annualized vs non-annualized volatility."""
         import math
+
         n = 100
         import random
+
         random.seed(42)
-        df = pl.DataFrame({
-            "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
+            }
+        )
 
         result_annual = compute_multi_window_volatility(
             df, windows=[20], annualize=True, periods_per_year=252
         )
-        result_raw = compute_multi_window_volatility(
-            df, windows=[20], annualize=False
-        )
+        result_raw = compute_multi_window_volatility(df, windows=[20], annualize=False)
 
         # Annualized should be larger by sqrt(252) factor
         annual_vals = result_annual["volatility_20"].drop_nulls().to_list()
@@ -340,10 +378,13 @@ class TestComputeMultiWindowVolatility:
         """Test that all volatility values are non-negative."""
         n = 100
         import random
+
         random.seed(42)
-        df = pl.DataFrame({
-            "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0 + random.gauss(0, 1) for _ in range(n)],
+            }
+        )
 
         result = compute_multi_window_volatility(df, windows=[10, 20])
 
@@ -361,10 +402,12 @@ class TestComputeMultiWindowVolatility:
     def test_multi_window_volatility_custom_column(self) -> None:
         """Test multi-window volatility with custom column."""
         n = 50
-        df = pl.DataFrame({
-            "close": [100.0 + i * 0.1 for i in range(n)],
-            "open": [99.0 + i * 0.1 for i in range(n)],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0 + i * 0.1 for i in range(n)],
+                "open": [99.0 + i * 0.1 for i in range(n)],
+            }
+        )
 
         result = compute_multi_window_volatility(df, column="open", windows=[10])
 

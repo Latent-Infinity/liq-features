@@ -105,9 +105,7 @@ class Aggregator:
         """Get the target timeframe."""
         return self._target_timeframe
 
-    def aggregate(
-        self, df: pl.DataFrame, include_incomplete: bool = False
-    ) -> pl.DataFrame:
+    def aggregate(self, df: pl.DataFrame, include_incomplete: bool = False) -> pl.DataFrame:
         """Aggregate OHLCV data to target timeframe.
 
         Args:

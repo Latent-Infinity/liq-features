@@ -35,7 +35,9 @@ class TestBootstrapMI:
         target = pl.Series("y", y)
 
         result = bootstrap_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_bootstrap=100,  # Small for speed
             random_state=42,
         )
@@ -61,7 +63,9 @@ class TestBootstrapMI:
         target = pl.Series("y", y)
 
         result = bootstrap_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_bootstrap=200,
             random_state=42,
         )
@@ -131,13 +135,17 @@ class TestBootstrapMI:
         target = pl.Series("y", y)
 
         result_90 = bootstrap_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_bootstrap=200,
             confidence_level=0.90,
             random_state=42,
         )
         result_99 = bootstrap_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_bootstrap=200,
             confidence_level=0.99,
             random_state=42,
@@ -163,7 +171,9 @@ class TestPermutationTestMI:
         target = pl.Series("y", y)
 
         result = permutation_test_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_permutations=100,
             random_state=42,
         )
@@ -188,7 +198,9 @@ class TestPermutationTestMI:
         target = pl.Series("y", y)
 
         result = permutation_test_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_permutations=200,
             random_state=42,
         )
@@ -208,7 +220,9 @@ class TestPermutationTestMI:
         target = pl.Series("y", y)
 
         result = permutation_test_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_permutations=200,
             random_state=42,
         )
@@ -228,7 +242,9 @@ class TestPermutationTestMI:
         target = pl.Series("y", y)
 
         result = permutation_test_mi(
-            features, target, "x",
+            features,
+            target,
+            "x",
             n_permutations=200,
             random_state=42,
         )
@@ -271,7 +287,10 @@ class TestPairedBootstrapDifference:
         target_midrange = pl.Series("y_midrange", y_midrange)
 
         result = paired_bootstrap_difference(
-            features, target_close, target_midrange, "x",
+            features,
+            target_close,
+            target_midrange,
+            "x",
             n_bootstrap=100,
             random_state=42,
         )
@@ -298,7 +317,10 @@ class TestPairedBootstrapDifference:
         target_midrange = pl.Series("y_midrange", y_midrange)
 
         result = paired_bootstrap_difference(
-            features, target_close, target_midrange, "x",
+            features,
+            target_close,
+            target_midrange,
+            "x",
             n_bootstrap=200,
             random_state=42,
         )
@@ -323,7 +345,10 @@ class TestPairedBootstrapDifference:
         target_midrange = pl.Series("y_midrange", y_midrange)
 
         result = paired_bootstrap_difference(
-            features, target_close, target_midrange, "x",
+            features,
+            target_close,
+            target_midrange,
+            "x",
             n_bootstrap=200,
             random_state=42,
         )
@@ -344,7 +369,10 @@ class TestPairedBootstrapDifference:
         target_midrange = pl.Series("y_midrange", y_midrange)
 
         result = paired_bootstrap_difference(
-            features, target_close, target_midrange, "x",
+            features,
+            target_close,
+            target_midrange,
+            "x",
             n_bootstrap=100,
             random_state=42,
         )
@@ -360,15 +388,18 @@ class TestBatchFunctions:
         """Test batch bootstrap returns results for all features."""
         np.random.seed(42)
         n = 200
-        features = pl.DataFrame({
-            "x1": np.random.randn(n),
-            "x2": np.random.randn(n),
-            "x3": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "x1": np.random.randn(n),
+                "x2": np.random.randn(n),
+                "x3": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", features["x1"].to_numpy() + 0.5 * np.random.randn(n))
 
         results = batch_bootstrap_mi(
-            features, target,
+            features,
+            target,
             features=["x1", "x2", "x3"],
             n_bootstrap=50,
             random_state=42,
@@ -383,14 +414,17 @@ class TestBatchFunctions:
         """Test batch permutation returns results for all features."""
         np.random.seed(42)
         n = 200
-        features = pl.DataFrame({
-            "x1": np.random.randn(n),
-            "x2": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "x1": np.random.randn(n),
+                "x2": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", features["x1"].to_numpy() + 0.5 * np.random.randn(n))
 
         results = batch_permutation_test(
-            features, target,
+            features,
+            target,
             features=["x1", "x2"],
             n_permutations=50,
             random_state=42,
@@ -405,15 +439,19 @@ class TestBatchFunctions:
         """Test batch paired difference returns results for all features."""
         np.random.seed(42)
         n = 200
-        features = pl.DataFrame({
-            "x1": np.random.randn(n),
-            "x2": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "x1": np.random.randn(n),
+                "x2": np.random.randn(n),
+            }
+        )
         y_close = pl.Series("y_close", features["x1"].to_numpy() + 0.5 * np.random.randn(n))
         y_midrange = pl.Series("y_mid", features["x1"].to_numpy() + 0.3 * np.random.randn(n))
 
         results = batch_paired_difference(
-            features, y_close, y_midrange,
+            features,
+            y_close,
+            y_midrange,
             features=["x1", "x2"],
             n_bootstrap=50,
             random_state=42,
@@ -428,10 +466,12 @@ class TestBatchFunctions:
         """Test progress callback is called."""
         np.random.seed(42)
         n = 200
-        features = pl.DataFrame({
-            "x1": np.random.randn(n),
-            "x2": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "x1": np.random.randn(n),
+                "x2": np.random.randn(n),
+            }
+        )
         target = pl.Series("y", np.random.randn(n))
 
         progress_calls = []
@@ -440,7 +480,8 @@ class TestBatchFunctions:
             progress_calls.append((current, total))
 
         batch_bootstrap_mi(
-            features, target,
+            features,
+            target,
             features=["x1", "x2"],
             n_bootstrap=20,
             random_state=42,
@@ -665,20 +706,44 @@ class TestResultDataclasses:
     def test_significance_report_summary_counts(self) -> None:
         """Test SignificanceReport property calculations."""
         perm_sig = PermutationResult(
-            feature="x1", observed_mi=0.5, p_value=0.01,
-            null_mean=0.02, null_std=0.01, n_permutations=100, n_samples=500,
+            feature="x1",
+            observed_mi=0.5,
+            p_value=0.01,
+            null_mean=0.02,
+            null_std=0.01,
+            n_permutations=100,
+            n_samples=500,
         )
         perm_not_sig = PermutationResult(
-            feature="x2", observed_mi=0.1, p_value=0.10,
-            null_mean=0.08, null_std=0.05, n_permutations=100, n_samples=500,
+            feature="x2",
+            observed_mi=0.1,
+            p_value=0.10,
+            null_mean=0.08,
+            null_std=0.05,
+            n_permutations=100,
+            n_samples=500,
         )
         paired_sig = PairedDifferenceResult(
-            feature="x1", close_mi=0.3, midrange_mi=0.5, difference=0.2,
-            ci_lower=0.1, ci_upper=0.3, p_value=0.01, n_bootstrap=100, n_samples=500,
+            feature="x1",
+            close_mi=0.3,
+            midrange_mi=0.5,
+            difference=0.2,
+            ci_lower=0.1,
+            ci_upper=0.3,
+            p_value=0.01,
+            n_bootstrap=100,
+            n_samples=500,
         )
         paired_not_sig = PairedDifferenceResult(
-            feature="x2", close_mi=0.3, midrange_mi=0.31, difference=0.01,
-            ci_lower=-0.1, ci_upper=0.1, p_value=0.40, n_bootstrap=100, n_samples=500,
+            feature="x2",
+            close_mi=0.3,
+            midrange_mi=0.31,
+            difference=0.01,
+            ci_lower=-0.1,
+            ci_upper=0.1,
+            p_value=0.40,
+            n_bootstrap=100,
+            n_samples=500,
         )
 
         report = SignificanceReport(

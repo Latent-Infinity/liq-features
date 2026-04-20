@@ -16,7 +16,9 @@ class DriftResult:
     drifted: bool
 
 
-def ks_drift(live: Iterable[float], ref: Iterable[float], feature: str, threshold: float = 0.1) -> DriftResult:
+def ks_drift(
+    live: Iterable[float], ref: Iterable[float], feature: str, threshold: float = 0.1
+) -> DriftResult:
     """Simplified KS-like drift detector using Wasserstein distance proxy."""
     live_arr = np.array(list(live), dtype=float)
     ref_arr = np.array(list(ref), dtype=float)

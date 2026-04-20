@@ -35,5 +35,5 @@ def garman_klass(df: pl.DataFrame) -> float:
         return 0.0
     log_hl = (df["high"] / df["low"]).log()
     log_co = (df["close"] / df["open"]).log()
-    mean_variance = _coerce_float(((0.5 * log_hl ** 2) - (2 * log_co ** 2)).mean())
+    mean_variance = _coerce_float(((0.5 * log_hl**2) - (2 * log_co**2)).mean())
     return float(mean_variance**0.5)

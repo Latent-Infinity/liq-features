@@ -59,12 +59,8 @@ class OutOfSampleResult:
         Returns:
             Overlap proportion (0-1).
         """
-        train_top = set(
-            sorted(self.train_ranking.keys(), key=lambda f: self.train_ranking[f])[:k]
-        )
-        test_top = set(
-            sorted(self.test_ranking.keys(), key=lambda f: self.test_ranking[f])[:k]
-        )
+        train_top = set(sorted(self.train_ranking.keys(), key=lambda f: self.train_ranking[f])[:k])
+        test_top = set(sorted(self.test_ranking.keys(), key=lambda f: self.test_ranking[f])[:k])
         return len(train_top & test_top) / k
 
     def to_dict(self) -> dict[str, Any]:

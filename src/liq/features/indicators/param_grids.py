@@ -13,7 +13,23 @@ from typing import Any
 # Fibonacci sequence for period parameters - natural fit for technical analysis
 # Extended sequence: 2 through ~3750 for comprehensive parameter sweeps
 FIBONACCI_PERIODS_EXTENDED: list[int] = [
-    2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181
+    2,
+    3,
+    5,
+    8,
+    13,
+    21,
+    34,
+    55,
+    89,
+    144,
+    233,
+    377,
+    610,
+    987,
+    1597,
+    2584,
+    4181,
 ]
 
 # Standard Fibonacci periods (up to 233) - for most experiments
@@ -58,13 +74,13 @@ def get_fibonacci_periods_for_bars(
 
 # Estimated bar counts for different timeframes (BTC 2020-2025)
 TIMEFRAME_BAR_COUNTS: dict[str, int] = {
-    "1m": 3_123_000,   # ~3.1M bars
-    "5m": 624_600,     # ~624k bars
-    "15m": 208_200,    # ~208k bars
-    "30m": 104_100,    # ~104k bars
-    "1h": 52_050,      # ~52k bars
-    "4h": 13_010,      # ~13k bars
-    "1d": 2_170,       # ~2.2k bars
+    "1m": 3_123_000,  # ~3.1M bars
+    "5m": 624_600,  # ~624k bars
+    "15m": 208_200,  # ~208k bars
+    "30m": 104_100,  # ~104k bars
+    "1h": 52_050,  # ~52k bars
+    "4h": 13_010,  # ~13k bars
+    "1d": 2_170,  # ~2.2k bars
 }
 
 
@@ -87,6 +103,7 @@ def get_periods_for_timeframe(timeframe: str) -> list[int]:
     """
     n_bars = TIMEFRAME_BAR_COUNTS.get(timeframe, 10000)
     return get_fibonacci_periods_for_bars(n_bars)
+
 
 # Default parameter grids for common indicators (using Fibonacci periods)
 DEFAULT_PARAM_GRIDS: dict[str, dict[str, list[Any]]] = {
@@ -279,16 +296,16 @@ OPTIONAL_CATEGORIES: set[str] = {"Pattern Recognition"}
 # These have constraints like fast < slow that cause most combinations to fail
 PROBLEMATIC_INDICATORS: set[str] = {
     "macdext",  # 38k+ variations, most fail due to fast >= slow
-    "mavp",     # Requires periods array input which we don't support
+    "mavp",  # Requires periods array input which we don't support
 }
 
 # Indicators that return raw price values (not normalized/stationary)
 # These create spuriously high MI because price level correlates with volatility
 # Use the *index variants instead (minindex, maxindex, minmaxindex) which return bar indices
 RAW_PRICE_INDICATORS: set[str] = {
-    "min",      # Returns min price over period - use minindex instead
-    "max",      # Returns max price over period - use maxindex instead
-    "minmax",   # Returns (min, max) prices - use minmaxindex instead
+    "min",  # Returns min price over period - use minindex instead
+    "max",  # Returns max price over period - use maxindex instead
+    "minmax",  # Returns (min, max) prices - use minmaxindex instead
 }
 
 # Default period variations for auto-generated grids (Fibonacci-based)
@@ -297,7 +314,24 @@ FAST_PERIOD_VARIATIONS: list[int] = [3, 5, 8, 13]
 SLOW_PERIOD_VARIATIONS: list[int] = [13, 21, 34, 55]
 
 # Extended variations for comprehensive sweeps
-PERIOD_VARIATIONS_EXTENDED: list[int] = [2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584]
+PERIOD_VARIATIONS_EXTENDED: list[int] = [
+    2,
+    3,
+    5,
+    8,
+    13,
+    21,
+    34,
+    55,
+    89,
+    144,
+    233,
+    377,
+    610,
+    987,
+    1597,
+    2584,
+]
 FAST_PERIOD_VARIATIONS_EXTENDED: list[int] = [2, 3, 5, 8, 13, 21, 34, 55, 89]
 SLOW_PERIOD_VARIATIONS_EXTENDED: list[int] = [13, 21, 34, 55, 89, 144, 233, 377, 610, 987]
 
@@ -352,7 +386,7 @@ def generate_fibonacci_period_pairs(
     # Generate all pairs where fast < slow
     pairs = []
     for i, fast in enumerate(base_periods):
-        for slow in base_periods[i + 1:]:
+        for slow in base_periods[i + 1 :]:
             pairs.append((fast, slow))
 
     return pairs

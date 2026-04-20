@@ -23,10 +23,12 @@ def sample_data() -> tuple[pl.DataFrame, pl.Series]:
     rng = np.random.default_rng(42)
     n = 100
 
-    X = pl.DataFrame({
-        "feature_a": rng.normal(0, 1, n),
-        "feature_b": rng.normal(0, 1, n),
-    })
+    X = pl.DataFrame(
+        {
+            "feature_a": rng.normal(0, 1, n),
+            "feature_b": rng.normal(0, 1, n),
+        }
+    )
     y = pl.Series("target", rng.normal(0, 1, n))
 
     return X, y
@@ -50,9 +52,7 @@ def configure_logging(log_capture: StringIO) -> logging.Logger:
     # Add stream handler to capture output
     handler = logging.StreamHandler(log_capture)
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(levelname)s - %(name)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(levelname)s - %(name)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
@@ -110,7 +110,8 @@ class TestLoggingContext:
         X, y = sample_data
 
         rolling_mi_analysis(
-            X, y,
+            X,
+            y,
             features=["feature_a"],
             window_size=30,
             step_size=10,
@@ -259,7 +260,8 @@ class TestStructuredLogging:
 
         with pytest.raises(ConfigurationError):
             rolling_mi_analysis(
-                X, y,
+                X,
+                y,
                 features=["feature"],
                 window_size=-1,  # Invalid
                 step_size=10,

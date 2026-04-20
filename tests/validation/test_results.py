@@ -88,9 +88,7 @@ class TestOutOfSampleResult:
         assert restored.test_mi == oos_result.test_mi
         assert restored.spearman_correlation == oos_result.spearman_correlation
 
-    def test_to_dict_includes_computed_properties(
-        self, oos_result: OutOfSampleResult
-    ) -> None:
+    def test_to_dict_includes_computed_properties(self, oos_result: OutOfSampleResult) -> None:
         """to_dict should include computed properties."""
         d = oos_result.to_dict()
         assert "is_stable" in d
@@ -153,9 +151,7 @@ class TestModelComparisonResult:
         """sharpe_improvement should be 0.3."""
         assert abs(model_result.sharpe_improvement - 0.3) < 0.01
 
-    def test_to_dict_from_dict_roundtrip(
-        self, model_result: ModelComparisonResult
-    ) -> None:
+    def test_to_dict_from_dict_roundtrip(self, model_result: ModelComparisonResult) -> None:
         """to_dict and from_dict should roundtrip."""
         d = model_result.to_dict()
         restored = ModelComparisonResult.from_dict(d)
@@ -334,9 +330,7 @@ class TestTemporalStabilityResult:
         )
         assert result_with_changes.n_regime_changes == 2
 
-    def test_to_dict_from_dict_roundtrip(
-        self, temporal_result: TemporalStabilityResult
-    ) -> None:
+    def test_to_dict_from_dict_roundtrip(self, temporal_result: TemporalStabilityResult) -> None:
         """to_dict and from_dict should roundtrip."""
         d = temporal_result.to_dict()
         restored = TemporalStabilityResult.from_dict(d)
