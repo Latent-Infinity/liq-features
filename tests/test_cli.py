@@ -185,7 +185,8 @@ class TestCacheCleanCommand:
             cache.set(key, sample_result_df)
 
         result = runner.invoke(
-            app, ["cache", "clean", "--cache-dir", str(cache_dir), "--symbol", "BTC_USDT", "--force"]
+            app,
+            ["cache", "clean", "--cache-dir", str(cache_dir), "--symbol", "BTC_USDT", "--force"],
         )
         assert result.exit_code == 0
         assert "1" in result.output  # Deleted 1 entry
@@ -215,7 +216,8 @@ class TestCacheCleanCommand:
             cache.set(key, sample_result_df)
 
         result = runner.invoke(
-            app, ["cache", "clean", "--cache-dir", str(cache_dir), "--indicator", "sarext", "--force"]
+            app,
+            ["cache", "clean", "--cache-dir", str(cache_dir), "--indicator", "sarext", "--force"],
         )
         assert result.exit_code == 0
         assert "1" in result.output
@@ -240,7 +242,9 @@ class TestCacheCleanCommand:
         assert result.exit_code == 0
         assert "No entries match" in result.output
 
-    def test_clean_confirmation_cancelled(self, tmp_path: Path, sample_result_df: pl.DataFrame) -> None:
+    def test_clean_confirmation_cancelled(
+        self, tmp_path: Path, sample_result_df: pl.DataFrame
+    ) -> None:
         """Test clean cancelled by user."""
         cache_dir = tmp_path / "cache"
         cache = IndicatorCache(storage=ParquetStore(str(cache_dir)))
@@ -256,8 +260,7 @@ class TestCacheCleanCommand:
 
         # Simulate user typing "n" to cancel
         result = runner.invoke(
-            app, ["cache", "clean", "--cache-dir", str(cache_dir), "--all"],
-            input="n\n"
+            app, ["cache", "clean", "--cache-dir", str(cache_dir), "--all"], input="n\n"
         )
         assert result.exit_code == 0
         assert "Cancelled" in result.output
@@ -276,7 +279,9 @@ class TestLegacyIndicatorCacheCommand:
         assert result.exit_code == 0
         assert "0" in result.output or "entries" in result.output.lower()
 
-    def test_cache_status_with_entries(self, tmp_path: Path, sample_result_df: pl.DataFrame) -> None:
+    def test_cache_status_with_entries(
+        self, tmp_path: Path, sample_result_df: pl.DataFrame
+    ) -> None:
         """Test cache status shows entry count."""
         cache_dir = tmp_path / "cache"
         cache = IndicatorCache(storage=ParquetStore(str(cache_dir)))

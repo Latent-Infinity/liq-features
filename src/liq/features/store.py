@@ -128,7 +128,11 @@ class FeatureStore:
         for name, feat_df in outputs.items():
             if combined is None:
                 last_col = feat_df.columns[-1]
-                combined = feat_df.rename({"value": name}) if "value" in feat_df.columns else feat_df.rename({last_col: name})
+                combined = (
+                    feat_df.rename({"value": name})
+                    if "value" in feat_df.columns
+                    else feat_df.rename({last_col: name})
+                )
             else:
                 combined = combined.join(
                     feat_df.rename({feat_df.columns[-1]: name}),

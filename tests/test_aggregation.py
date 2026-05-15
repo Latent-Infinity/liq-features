@@ -57,17 +57,19 @@ class TestAggregatorAggregate:
 
     def test_ohlc_aggregation_rules(self) -> None:
         """Test OHLC aggregation follows correct rules."""
-        df = pl.DataFrame({
-            "timestamp": [
-                datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
-                datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
-                datetime(2024, 1, 15, 10, 2, 0, tzinfo=UTC),
-            ],
-            "open": [100.0, 102.0, 101.0],
-            "high": [105.0, 103.0, 104.0],
-            "low": [99.0, 100.0, 98.0],
-            "close": [102.0, 101.0, 103.0],
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": [
+                    datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
+                    datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
+                    datetime(2024, 1, 15, 10, 2, 0, tzinfo=UTC),
+                ],
+                "open": [100.0, 102.0, 101.0],
+                "high": [105.0, 103.0, 104.0],
+                "low": [99.0, 100.0, 98.0],
+                "close": [102.0, 101.0, 103.0],
+            }
+        )
 
         agg = Aggregator(source_timeframe="1min", target_timeframe="1h")
         # include_incomplete=True to test aggregation logic with partial data
@@ -75,22 +77,24 @@ class TestAggregatorAggregate:
 
         assert result["open"][0] == 100.0  # First open
         assert result["high"][0] == 105.0  # Max high
-        assert result["low"][0] == 98.0    # Min low
+        assert result["low"][0] == 98.0  # Min low
         assert result["close"][0] == 103.0  # Last close
 
     def test_volume_aggregation(self) -> None:
         """Test volume is summed."""
-        df = pl.DataFrame({
-            "timestamp": [
-                datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
-                datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
-            ],
-            "open": [100.0, 101.0],
-            "high": [102.0, 103.0],
-            "low": [99.0, 100.0],
-            "close": [101.0, 102.0],
-            "volume": [1000.0, 1500.0],
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": [
+                    datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
+                    datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
+                ],
+                "open": [100.0, 101.0],
+                "high": [102.0, 103.0],
+                "low": [99.0, 100.0],
+                "close": [101.0, 102.0],
+                "volume": [1000.0, 1500.0],
+            }
+        )
 
         agg = Aggregator(source_timeframe="1min", target_timeframe="1h")
         # include_incomplete=True to test volume aggregation with partial data
@@ -100,10 +104,12 @@ class TestAggregatorAggregate:
 
     def test_missing_columns_raises_error(self) -> None:
         """Test missing columns raise error."""
-        df = pl.DataFrame({
-            "timestamp": [datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)],
-            "open": [100.0],
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": [datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)],
+                "open": [100.0],
+            }
+        )
 
         agg = Aggregator(source_timeframe="1min", target_timeframe="1h")
 
@@ -112,13 +118,15 @@ class TestAggregatorAggregate:
 
     def test_empty_dataframe(self) -> None:
         """Test empty DataFrame returns empty."""
-        df = pl.DataFrame({
-            "timestamp": pl.Series([], dtype=pl.Datetime("us", "UTC")),
-            "open": pl.Series([], dtype=pl.Float64),
-            "high": pl.Series([], dtype=pl.Float64),
-            "low": pl.Series([], dtype=pl.Float64),
-            "close": pl.Series([], dtype=pl.Float64),
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": pl.Series([], dtype=pl.Datetime("us", "UTC")),
+                "open": pl.Series([], dtype=pl.Float64),
+                "high": pl.Series([], dtype=pl.Float64),
+                "low": pl.Series([], dtype=pl.Float64),
+                "close": pl.Series([], dtype=pl.Float64),
+            }
+        )
 
         agg = Aggregator(source_timeframe="1min", target_timeframe="1h")
         result = agg.aggregate(df)
@@ -127,16 +135,18 @@ class TestAggregatorAggregate:
 
     def test_custom_timestamp_column(self) -> None:
         """Test custom timestamp column name."""
-        df = pl.DataFrame({
-            "ts": [
-                datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
-                datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
-            ],
-            "open": [100.0, 101.0],
-            "high": [102.0, 103.0],
-            "low": [99.0, 100.0],
-            "close": [101.0, 102.0],
-        })
+        df = pl.DataFrame(
+            {
+                "ts": [
+                    datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
+                    datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
+                ],
+                "open": [100.0, 101.0],
+                "high": [102.0, 103.0],
+                "low": [99.0, 100.0],
+                "close": [101.0, 102.0],
+            }
+        )
 
         agg = Aggregator(
             source_timeframe="1min",
@@ -153,16 +163,18 @@ class TestAggregateToTimeframe:
 
     def test_convenience_function(self) -> None:
         """Test convenience function works like Aggregator."""
-        df = pl.DataFrame({
-            "timestamp": [
-                datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
-                datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
-            ],
-            "open": [100.0, 101.0],
-            "high": [102.0, 103.0],
-            "low": [99.0, 100.0],
-            "close": [101.0, 102.0],
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": [
+                    datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
+                    datetime(2024, 1, 15, 10, 1, 0, tzinfo=UTC),
+                ],
+                "open": [100.0, 101.0],
+                "high": [102.0, 103.0],
+                "low": [99.0, 100.0],
+                "close": [101.0, 102.0],
+            }
+        )
 
         # include_incomplete=True to test with partial data
         result = aggregate_to_timeframe(df, "1min", "1h", include_incomplete=True)

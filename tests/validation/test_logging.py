@@ -23,10 +23,12 @@ def sample_data() -> tuple[pl.DataFrame, pl.Series]:
     rng = np.random.default_rng(42)
     n = 100
 
-    X = pl.DataFrame({
-        "feature_a": rng.normal(0, 1, n),
-        "feature_b": rng.normal(0, 1, n),
-    })
+    X = pl.DataFrame(
+        {
+            "feature_a": rng.normal(0, 1, n),
+            "feature_b": rng.normal(0, 1, n),
+        }
+    )
     y = pl.Series("target", rng.normal(0, 1, n))
 
     return X, y
@@ -38,7 +40,7 @@ def log_capture() -> StringIO:
     return StringIO()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def configure_logging(log_capture: StringIO) -> logging.Logger:
     """Configure logging to capture output."""
     logger = logging.getLogger("liq.features.validation")
@@ -50,9 +52,7 @@ def configure_logging(log_capture: StringIO) -> logging.Logger:
     # Add stream handler to capture output
     handler = logging.StreamHandler(log_capture)
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(levelname)s - %(name)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(levelname)s - %(name)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
@@ -66,7 +66,6 @@ class TestLoggingContext:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """OOS validation should log key parameters."""
         from liq.features.validation import validate_oos
@@ -84,7 +83,6 @@ class TestLoggingContext:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Sensitivity analysis should log k values being tested."""
         from liq.features.validation import mi_sensitivity_analysis
@@ -102,7 +100,6 @@ class TestLoggingContext:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Temporal analysis should log window parameters."""
         from liq.features.validation import rolling_mi_analysis
@@ -110,7 +107,8 @@ class TestLoggingContext:
         X, y = sample_data
 
         rolling_mi_analysis(
-            X, y,
+            X,
+            y,
             features=["feature_a"],
             window_size=30,
             step_size=10,
@@ -129,7 +127,6 @@ class TestLoggingLevels:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Function entry/exit should be at DEBUG level."""
         from liq.features.validation import validate_oos
@@ -146,7 +143,6 @@ class TestLoggingLevels:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Key results should be logged at INFO level."""
         from liq.features.validation import validate_oos
@@ -162,7 +158,6 @@ class TestLoggingLevels:
     def test_warning_level_for_small_samples(
         self,
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Small sample sizes should trigger WARNING."""
         from liq.features.validation import mi_sensitivity_analysis
@@ -188,7 +183,6 @@ class TestNoSensitiveData:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Raw data values should not appear in logs."""
         from liq.features.validation import validate_oos
@@ -209,7 +203,6 @@ class TestNoSensitiveData:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Full arrays should not be dumped to logs."""
         from liq.features.validation import validate_oos
@@ -231,7 +224,6 @@ class TestStructuredLogging:
         self,
         sample_data: tuple[pl.DataFrame, pl.Series],
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Logs should include the module name."""
         from liq.features.validation import validate_oos
@@ -247,7 +239,6 @@ class TestStructuredLogging:
     def test_error_logs_include_context(
         self,
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Error logs should include context information."""
         from liq.features.validation import rolling_mi_analysis
@@ -259,7 +250,8 @@ class TestStructuredLogging:
 
         with pytest.raises(ConfigurationError):
             rolling_mi_analysis(
-                X, y,
+                X,
+                y,
                 features=["feature"],
                 window_size=-1,  # Invalid
                 step_size=10,
@@ -277,7 +269,6 @@ class TestEffectSizeLogging:
     def test_cohens_d_logs_computation(
         self,
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Cohen's d should log computation details."""
         from liq.features.validation import cohens_d
@@ -296,7 +287,6 @@ class TestEffectSizeLogging:
     def test_bootstrap_logs_iterations(
         self,
         log_capture: StringIO,
-        configure_logging: logging.Logger,
     ) -> None:
         """Bootstrap CI should log iteration count."""
         from liq.features.validation import cohens_d_ci
@@ -311,3 +301,61 @@ class TestEffectSizeLogging:
 
         # Should log bootstrap iterations
         assert "100" in log_output or "bootstrap" in log_output.lower()
+
+
+class TestLoggingHelpers:
+    """Direct tests for logging helper behavior."""
+
+    def test_entry_sanitizes_large_and_structured_values(
+        self,
+        log_capture: StringIO,
+    ) -> None:
+        """Entry logs summarize large values without dumping raw contents."""
+        from liq.features.validation.logging_config import log_function_entry
+
+        logger = logging.getLogger("liq.features.validation.helper_test")
+
+        log_function_entry(
+            logger,
+            "sanitize",
+            values=np.array([1.0, 2.0, 3.0]),
+            small_list=[1, 2, 3],
+            large_list=list(range(20)),
+            mapping={"secret": "not_logged"},
+        )
+
+        log_output = log_capture.getvalue()
+        assert "values=<ndarray len=3>" in log_output
+        assert "small_list=<list len=3>" in log_output
+        assert "large_list=<list len=20>" in log_output
+        assert "mapping=<dict>" in log_output
+        assert "not_logged" not in log_output
+
+    def test_exit_result_warning_and_error_branches(
+        self,
+        log_capture: StringIO,
+    ) -> None:
+        """Helper functions include context only when supplied."""
+        from liq.features.validation.logging_config import (
+            log_error,
+            log_function_exit,
+            log_result,
+            log_warning,
+        )
+
+        logger = logging.getLogger("liq.features.validation.helper_test")
+        error = ValueError("bad window")
+
+        log_function_exit(logger, "without_summary")
+        log_result(logger, "plain result")
+        log_warning(logger, "plain warning")
+        log_warning(logger, "context warning", feature="midrange")
+        log_error(logger, "context error", error, window_size=-1)
+
+        log_output = log_capture.getvalue()
+        assert "Exiting without_summary" in log_output
+        assert "plain result" in log_output
+        assert "plain warning" in log_output
+        assert "context warning (feature=midrange)" in log_output
+        assert "context error (window_size=-1)" in log_output
+        assert "ValueError: bad window" in log_output

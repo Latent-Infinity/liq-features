@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from liq.features.validation.effect_size import (
+    batch_cohens_d,
     cohens_d,
     cohens_d_ci,
     pooled_std,
@@ -278,3 +279,42 @@ class TestEdgeCases:
 
         with pytest.raises(ValueError, match="variance"):
             cohens_d(group1, group2)
+
+
+class TestBatchCohensD:
+    """Tests for batch effect size calculation."""
+
+    def test_returns_results_for_common_features_with_enough_samples(self) -> None:
+        """Batch calculation evaluates only common valid bootstrap distributions."""
+        mi_close = {
+            "shared": [0.10, 0.20, 0.30, 0.40],
+            "close_only": [0.10, 0.20, 0.30, 0.40],
+        }
+        mi_midrange = {
+            "shared": [0.30, 0.40, 0.50, 0.60],
+            "midrange_only": [0.30, 0.40, 0.50, 0.60],
+        }
+
+        results = batch_cohens_d(
+            mi_close,
+            mi_midrange,
+            n_bootstrap=20,
+            random_state=42,
+        )
+
+        assert set(results) == {"shared"}
+        assert results["shared"].n_group1 == 4
+        assert results["shared"].n_group2 == 4
+        assert results["shared"].n_bootstrap == 20
+        assert results["shared"].cohens_d < 0
+
+    def test_skips_common_features_without_enough_samples(self) -> None:
+        """Undersized feature distributions are skipped instead of failing the batch."""
+        results = batch_cohens_d(
+            {"too_small": [0.10], "valid": [0.10, 0.20, 0.30]},
+            {"too_small": [0.20, 0.30], "valid": [0.30, 0.40, 0.50]},
+            n_bootstrap=20,
+            random_state=42,
+        )
+
+        assert set(results) == {"valid"}

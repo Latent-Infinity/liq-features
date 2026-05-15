@@ -23,10 +23,7 @@ class TestIndicatorNoLookahead:
         import math
 
         base_price = 100.0
-        timestamps = [
-            datetime(2024, 1, 1, i // 24, i % 24, tzinfo=UTC)
-            for i in range(n_rows)
-        ]
+        timestamps = [datetime(2024, 1, 1, i // 24, i % 24, tzinfo=UTC) for i in range(n_rows)]
 
         opens = []
         highs = []
@@ -50,14 +47,16 @@ class TestIndicatorNoLookahead:
 
             price = close_price
 
-        return pl.DataFrame({
-            "ts": timestamps,
-            "open": opens,
-            "high": highs,
-            "low": lows,
-            "close": closes,
-            "volume": [1000.0] * n_rows,
-        })
+        return pl.DataFrame(
+            {
+                "ts": timestamps,
+                "open": opens,
+                "high": highs,
+                "low": lows,
+                "close": closes,
+                "volume": [1000.0] * n_rows,
+            }
+        )
 
     def test_ema_uses_only_past_data(self) -> None:
         """EMA at time t should only use data from t and before."""
@@ -96,17 +95,16 @@ class TestIndicatorNoLookahead:
     def test_sma_window_correct(self) -> None:
         """SMA should use exactly the specified window of past data."""
         # Simple case with known values
-        df = pl.DataFrame({
-            "ts": [
-                datetime(2024, 1, i, tzinfo=UTC)
-                for i in range(1, 6)
-            ],
-            "open": [10.0, 20.0, 30.0, 40.0, 50.0],
-            "high": [15.0, 25.0, 35.0, 45.0, 55.0],
-            "low": [5.0, 15.0, 25.0, 35.0, 45.0],
-            "close": [10.0, 20.0, 30.0, 40.0, 50.0],
-            "volume": [100.0] * 5,
-        })
+        df = pl.DataFrame(
+            {
+                "ts": [datetime(2024, 1, i, tzinfo=UTC) for i in range(1, 6)],
+                "open": [10.0, 20.0, 30.0, 40.0, 50.0],
+                "high": [15.0, 25.0, 35.0, 45.0, 55.0],
+                "low": [5.0, 15.0, 25.0, 35.0, 45.0],
+                "close": [10.0, 20.0, 30.0, 40.0, 50.0],
+                "volume": [100.0] * 5,
+            }
+        )
 
         from liq.features.indicators.trend import SMA
 
@@ -127,27 +125,33 @@ class TestDerivedFieldsNoLookahead:
 
     def test_true_range_uses_previous_close(self) -> None:
         """True range should use previous bar's close, not future."""
-        df = pl.DataFrame({
-            "open": [100.0, 101.0, 102.0],
-            "high": [105.0, 106.0, 107.0],
-            "low": [95.0, 96.0, 97.0],
-            "close": [102.0, 103.0, 104.0],
-        })
+        df = pl.DataFrame(
+            {
+                "open": [100.0, 101.0, 102.0],
+                "high": [105.0, 106.0, 107.0],
+                "low": [95.0, 96.0, 97.0],
+                "close": [102.0, 103.0, 104.0],
+            }
+        )
 
         result = compute_derived_fields(df)
 
         # First true_range should be null (no previous close)
         # Second true_range uses first bar's close (102.0)
-        assert result["true_range"][0] is None or result["true_range"][0] == 10.0  # high-low if no prev
+        assert (
+            result["true_range"][0] is None or result["true_range"][0] == 10.0
+        )  # high-low if no prev
         # Verify true_range at position 1 uses close[0]=102.0
         # TR = max(106-96, |106-102|, |96-102|) = max(10, 4, 6) = 10
         assert result["true_range"][1] == 10.0
 
     def test_returns_use_previous_bar(self) -> None:
         """Returns should be computed using previous bar's price."""
-        df = pl.DataFrame({
-            "close": [100.0, 110.0, 99.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 110.0, 99.0],
+            }
+        )
 
         result = compute_returns(df, column="close", periods=1)
 
@@ -165,24 +169,28 @@ class TestAlignmentNoLookahead:
     def test_backward_strategy_prevents_lookahead(self) -> None:
         """Alignment should only use completed higher-TF bars from the past."""
         # Base 1-min bars
-        base = pl.DataFrame({
-            "timestamp": [
-                datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
-                datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
-                datetime(2024, 1, 1, 0, 3, tzinfo=UTC),
-                datetime(2024, 1, 1, 0, 6, tzinfo=UTC),  # After second higher bar
-            ],
-            "value": [1, 2, 3, 4],
-        })
+        base = pl.DataFrame(
+            {
+                "timestamp": [
+                    datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 3, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 6, tzinfo=UTC),  # After second higher bar
+                ],
+                "value": [1, 2, 3, 4],
+            }
+        )
 
         # Higher-TF 5-min bars
-        higher = pl.DataFrame({
-            "timestamp": [
-                datetime(2024, 1, 1, 0, 0, tzinfo=UTC),  # 00:00 bar
-                datetime(2024, 1, 1, 0, 5, tzinfo=UTC),  # 00:05 bar
-            ],
-            "htf_value": [100, 200],
-        })
+        higher = pl.DataFrame(
+            {
+                "timestamp": [
+                    datetime(2024, 1, 1, 0, 0, tzinfo=UTC),  # 00:00 bar
+                    datetime(2024, 1, 1, 0, 5, tzinfo=UTC),  # 00:05 bar
+                ],
+                "htf_value": [100, 200],
+            }
+        )
 
         aligned = align_higher_timeframe(base, higher)
 
@@ -196,21 +204,25 @@ class TestAlignmentNoLookahead:
 
     def test_no_future_higher_tf_data(self) -> None:
         """Base bars should never receive future higher-TF data."""
-        base = pl.DataFrame({
-            "timestamp": [
-                datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
-                datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
-            ],
-            "value": [1, 2],
-        })
+        base = pl.DataFrame(
+            {
+                "timestamp": [
+                    datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 2, tzinfo=UTC),
+                ],
+                "value": [1, 2],
+            }
+        )
 
         # Higher TF bar is in the future relative to all base bars
-        higher = pl.DataFrame({
-            "timestamp": [
-                datetime(2024, 1, 1, 0, 10, tzinfo=UTC),  # Future!
-            ],
-            "htf_value": [999],
-        })
+        higher = pl.DataFrame(
+            {
+                "timestamp": [
+                    datetime(2024, 1, 1, 0, 10, tzinfo=UTC),  # Future!
+                ],
+                "htf_value": [999],
+            }
+        )
 
         aligned = align_higher_timeframe(base, higher)
 
@@ -226,13 +238,15 @@ class TestTripleBarrierLabelsIntentionalLookahead:
     def test_labels_use_future_data_as_expected(self) -> None:
         """Triple barrier labels intentionally look ahead for ML training."""
         # This is expected behavior - labels ARE lookahead by design
-        df = pl.DataFrame({
-            "close": [100.0, 102.0, 98.0, 101.0, 103.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 102.0, 98.0, 101.0, 103.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.02,  # 2% target
-            stop_loss=0.02,    # 2% stop
+            stop_loss=0.02,  # 2% stop
             max_holding=3,
         )
 
@@ -247,9 +261,11 @@ class TestTripleBarrierLabelsIntentionalLookahead:
 
     def test_last_bar_cannot_lookahead(self) -> None:
         """Last bar has no future data to look at."""
-        df = pl.DataFrame({
-            "close": [100.0, 101.0, 102.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.05,  # Won't hit in remaining data

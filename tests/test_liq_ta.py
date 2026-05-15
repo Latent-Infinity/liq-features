@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import patch
 
-import polars as pl
 import numpy as np
+import polars as pl
 import pytest
 
 from liq.features.indicators.liq_ta import (
@@ -32,9 +32,7 @@ def sample_ohlc_df() -> pl.DataFrame:
     n_rows = 100
     base_price = 100.0
 
-    timestamps = [
-        datetime(2024, 1, 1, i // 24, i % 24, 0, tzinfo=UTC) for i in range(n_rows)
-    ]
+    timestamps = [datetime(2024, 1, 1, i // 24, i % 24, 0, tzinfo=UTC) for i in range(n_rows)]
 
     opens = []
     highs = []
@@ -88,8 +86,9 @@ class TestCheckLiqTaNotInstalled:
 
     def test_check_liq_ta_raises_import_error(self) -> None:
         """Test _check_liq_ta raises ImportError when liq-ta is not installed."""
-        with patch("liq.features.indicators.liq_ta.HAS_LIQ_TA", False), pytest.raises(
-            ImportError, match="liq-ta is required"
+        with (
+            patch("liq.features.indicators.liq_ta.HAS_LIQ_TA", False),
+            pytest.raises(ImportError, match="liq-ta is required"),
         ):
             _check_liq_ta()
 
@@ -500,9 +499,7 @@ class TestMapInputs:
         from collections import OrderedDict
 
         # Add midrange column
-        df = sample_ohlc_df.with_columns(
-            ((pl.col("high") + pl.col("low")) / 2).alias("midrange")
-        )
+        df = sample_ohlc_df.with_columns(((pl.col("high") + pl.col("low")) / 2).alias("midrange"))
         input_names = OrderedDict({"real": None})
 
         inputs = map_inputs(df, input_names, price_column="midrange", indicator_name="rsi")
@@ -855,9 +852,7 @@ class TestEdgeCases:
         # real1 should fall back to close
         assert "close" in inputs
 
-    def test_format_outputs_single_array_multi_output(
-        self, sample_ohlc_df: pl.DataFrame
-    ) -> None:
+    def test_format_outputs_single_array_multi_output(self, sample_ohlc_df: pl.DataFrame) -> None:
         """Test format_outputs handles single array for multi-output (edge case)."""
         import numpy as np
 
@@ -896,9 +891,7 @@ class TestEdgeCases:
     def test_custom_price_column(self, sample_ohlc_df: pl.DataFrame) -> None:
         """Test using custom price column via _price_column param."""
         # Add midrange column
-        df = sample_ohlc_df.with_columns(
-            ((pl.col("high") + pl.col("low")) / 2).alias("midrange")
-        )
+        df = sample_ohlc_df.with_columns(((pl.col("high") + pl.col("low")) / 2).alias("midrange"))
 
         RSI = get_dynamic_indicator("rsi")
         indicator = RSI(params={"timeperiod": 14, "_price_column": "midrange"})
@@ -909,9 +902,7 @@ class TestEdgeCases:
         assert "value" in result.columns
         assert len(result) > 0
 
-    def test_mavp_swaps_inverted_min_max_periods(
-        self, sample_ohlc_df: pl.DataFrame
-    ) -> None:
+    def test_mavp_swaps_inverted_min_max_periods(self, sample_ohlc_df: pl.DataFrame) -> None:
         """MAVP handles inverted period bounds by normalizing them."""
         MAVP = get_dynamic_indicator("mavp")
         indicator = MAVP(params={"min_period": 30, "max_period": 10})
@@ -994,9 +985,7 @@ class TestEdgeCases:
         assert "ts" in result.columns
         assert "value" in result.columns
 
-    def test_price0_price1_fallback_to_price_column(
-        self, sample_ohlc_df: pl.DataFrame
-    ) -> None:
+    def test_price0_price1_fallback_to_price_column(self, sample_ohlc_df: pl.DataFrame) -> None:
         """Test price0/price1 falls back to price column if spec column missing."""
         from collections import OrderedDict
 

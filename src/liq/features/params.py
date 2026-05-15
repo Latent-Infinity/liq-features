@@ -10,17 +10,16 @@ Design Principles:
     - DRY: Reusable across all indicator types
 """
 
+import importlib
 import json
 from typing import Any
 
 try:
-    import xxhash
-
-    HAS_XXHASH = True
+    xxhash: Any | None = importlib.import_module("xxhash")
 except ImportError:
     import hashlib
 
-    HAS_XXHASH = False
+    xxhash = None
 
 
 def normalize_params(params: dict[str, Any]) -> dict[str, Any]:
@@ -83,12 +82,11 @@ def hash_params(params: dict[str, Any]) -> str:
     json_str = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
     json_bytes = json_str.encode("utf-8")
 
-    if HAS_XXHASH:
+    if xxhash is not None:
         hash_val = xxhash.xxh64(json_bytes).intdigest()
         return format(hash_val, "016x")[:16]
-    else:
-        hash_obj = hashlib.md5(json_bytes, usedforsecurity=False)
-        return hash_obj.hexdigest()[:16]
+    hash_obj = hashlib.md5(json_bytes, usedforsecurity=False)
+    return hash_obj.hexdigest()[:16]
 
 
 def format_params_key(params: dict[str, Any]) -> str:

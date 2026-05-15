@@ -1,4 +1,4 @@
-"""Regime-related features."""
+"""Hurst exponent feature utilities."""
 
 from __future__ import annotations
 

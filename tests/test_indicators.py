@@ -11,6 +11,7 @@ from liq.features.indicators import (
     get_indicator,
     get_indicator_metadata,
     list_indicators,
+    registry,
 )
 from liq.features.indicators.momentum import MACD, ROC, RSI, Stochastic
 from liq.features.indicators.trend import ADX, ATR, BBANDS, EMA, HMA, SMA, WMA
@@ -48,14 +49,16 @@ class TestBaseIndicator:
         store = ParquetStore(str(tmp_path))
         indicator = EchoIndicator(storage=store, input_column="midrange")
 
-        df = pl.DataFrame({
-            "ts": [
-                datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
-                datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
-            ],
-            "close": [1.0, 1.1],
-            "midrange": [2.0, 2.1],
-        })
+        df = pl.DataFrame(
+            {
+                "ts": [
+                    datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
+                    datetime(2024, 1, 1, 0, 1, tzinfo=UTC),
+                ],
+                "close": [1.0, 1.1],
+                "midrange": [2.0, 2.1],
+            }
+        )
 
         out1 = indicator.compute(df, symbol="EUR_USD", timeframe="1m")
         assert out1["value"].to_list() == [2.0, 2.1]  # input column override applied
@@ -103,18 +106,24 @@ class TestIndicatorRegistry:
         assert "ema" in names
         assert "macd" in names
 
-    def test_list_indicators_merges_dynamic_backend_when_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_list_indicators_merges_dynamic_backend_when_available(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Simulate dynamic backend availability and ensure merged listing."""
         from liq.features.indicators import liq_ta as liq_ta_mod
         from liq.features.indicators import registry
 
-        monkeypatch.setattr(liq_ta_mod, "list_dynamic_indicators", lambda: [
-            {
-                "name": "ta_dummy",
-                "display_name": "TA Dummy",
-                "parameters": {"timeperiod": 10},
-            }
-        ])
+        monkeypatch.setattr(
+            liq_ta_mod,
+            "list_dynamic_indicators",
+            lambda: [
+                {
+                    "name": "ta_dummy",
+                    "display_name": "TA Dummy",
+                    "parameters": {"timeperiod": 10},
+                }
+            ],
+        )
 
         indicators = registry.list_indicators()
         names = {ind["name"] for ind in indicators}
@@ -177,7 +186,7 @@ class TestIndicatorRegistry:
         monkeypatch.setattr(
             liq_ta_mod,
             "get_indicator_metadata",
-            lambda name: {
+            lambda _name: {
                 "name": "ta_dynamic",
                 "display_name": "TA Dynamic",
                 "group": "Momentum",
@@ -195,6 +204,48 @@ class TestIndicatorRegistry:
         metadata = get_indicator_metadata("ta_dynamic")
         assert metadata["source"] == "liq_ta"
         assert metadata["default_params"]["timeperiod"] == 10
+
+    def test_registry_private_value_normalization_edge_cases(self) -> None:
+        """Parameter metadata normalization rejects unsupported discrete values."""
+        assert registry._sorted_discrete_values("abc") is None
+        assert registry._sorted_discrete_values([True, False]) is None
+        assert registry._sorted_discrete_values([[1], 2]) is None
+        assert registry._sorted_discrete_values(["slow", 2]) is None
+        assert registry._sorted_discrete_values([1, float("inf")]) is None
+        assert registry._sorted_discrete_values([3.5, 1, 1, 2.0]) == [1.0, 2.0, 3.5]
+
+    def test_metadata_from_dynamic_normalizes_missing_or_scalar_input_names(self) -> None:
+        """Dynamic metadata remains stable when backend input_names are sparse."""
+        metadata = registry._metadata_from_dynamic(
+            {
+                "name": "demo",
+                "display_name": "Demo",
+                "parameters": {"enabled": True, "mode": "fast"},
+                "inputs": ["close"],
+                "input_names": {"real": "close"},
+                "outputs": ["value"],
+            }
+        )
+        params = {entry["name"]: entry for entry in metadata["parameters"]}
+
+        assert metadata["input_names"] == {"real": ["close"]}
+        assert params["enabled"]["dtype"] == "bool"
+        assert params["mode"]["dtype"] == "str"
+
+        fallback = registry._metadata_from_dynamic({"name": "fallback", "input_names": None})
+        assert fallback["input_names"] == {"fallback": ["fallback"]}
+
+    def test_registry_returns_copy_and_ignores_unknown_default_overrides(self) -> None:
+        """Registry helpers should not expose mutable internals or fail on unknown keys."""
+        registered = registry.get_registered_indicators()
+        registered.clear()
+        assert registry.get_indicator("rsi") is RSI
+
+        original = RSI.default_params.copy()
+        registry.configure_defaults({"unknown": {"period": 99}})
+        assert RSI.default_params == original
+        registry.reset_defaults()
+        assert RSI.default_params == original
 
 
 class TestRSI:
@@ -439,9 +490,7 @@ class TestMidrangeIndicators:
         assert atr_mr.params["period"] == 14
         assert atr_mr.params["input_column"] == "midrange"
 
-    def test_atr_midrange_computes_correctly(
-        self, sample_ohlc_df_large: pl.DataFrame
-    ) -> None:
+    def test_atr_midrange_computes_correctly(self, sample_ohlc_df_large: pl.DataFrame) -> None:
         """Test ATR_Midrange computation uses midrange price."""
         from liq.features.indicators.trend import ATR_Midrange
 
@@ -455,9 +504,7 @@ class TestMidrangeIndicators:
         assert all(v >= 0 for v in values.to_list())
         assert len(result) > 0
 
-    def test_atr_midrange_uses_midrange(
-        self, sample_ohlc_df_large: pl.DataFrame
-    ) -> None:
+    def test_atr_midrange_uses_midrange(self, sample_ohlc_df_large: pl.DataFrame) -> None:
         """Test ATR_Midrange actually uses midrange in calculation."""
         from liq.features.indicators.trend import ATR, ATR_Midrange
 
@@ -485,9 +532,7 @@ class TestMidrangeIndicators:
         assert adx_mr.params["period"] == 14
         assert adx_mr.params["input_column"] == "midrange"
 
-    def test_adx_midrange_computes_correctly(
-        self, sample_ohlc_df_large: pl.DataFrame
-    ) -> None:
+    def test_adx_midrange_computes_correctly(self, sample_ohlc_df_large: pl.DataFrame) -> None:
         """Test ADX_Midrange computation."""
         from liq.features.indicators.trend import ADX_Midrange
 

@@ -141,9 +141,9 @@ def compute_returns(
         suffix = f"log_{suffix}"
     else:
         # Simple return: (price_t - price_{t-n}) / price_{t-n}
-        return_expr = (pl.col(column) - pl.col(column).shift(periods)) / pl.col(
-            column
-        ).shift(periods)
+        return_expr = (pl.col(column) - pl.col(column).shift(periods)) / pl.col(column).shift(
+            periods
+        )
 
     return df.with_columns([return_expr.alias(suffix)])
 
@@ -242,9 +242,7 @@ def compute_rolling_returns(
     if log_returns:
         return_expr = (pl.col(column) / pl.col(column).shift(1)).log()
     else:
-        return_expr = (pl.col(column) - pl.col(column).shift(1)) / pl.col(column).shift(
-            1
-        )
+        return_expr = (pl.col(column) - pl.col(column).shift(1)) / pl.col(column).shift(1)
 
     result = df.with_columns([return_expr.alias(return_col)])
 
@@ -253,15 +251,11 @@ def compute_rolling_returns(
         agg_exprs = []
         if "sum" in aggregations:
             agg_exprs.append(
-                pl.col(return_col)
-                .rolling_sum(window_size=window)
-                .alias(f"{prefix}_sum_{window}")
+                pl.col(return_col).rolling_sum(window_size=window).alias(f"{prefix}_sum_{window}")
             )
         if "mean" in aggregations:
             agg_exprs.append(
-                pl.col(return_col)
-                .rolling_mean(window_size=window)
-                .alias(f"{prefix}_mean_{window}")
+                pl.col(return_col).rolling_mean(window_size=window).alias(f"{prefix}_mean_{window}")
             )
         if agg_exprs:
             result = result.with_columns(agg_exprs)
@@ -320,9 +314,7 @@ def compute_multi_window_volatility(
 
     vol_exprs = []
     for window in windows:
-        vol_expr = (
-            pl.col(return_col).rolling_std(window_size=window) * annualization_factor
-        )
+        vol_expr = pl.col(return_col).rolling_std(window_size=window) * annualization_factor
         vol_exprs.append(vol_expr.alias(f"volatility_{window}"))
 
     result = result.with_columns(vol_exprs)

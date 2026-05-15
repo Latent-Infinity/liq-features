@@ -12,7 +12,7 @@ def corwin_schultz_spread(df: pl.DataFrame) -> float:
     if df.height < 2:
         return 0.0
     log_hl = (df["high"] / df["low"]).log()
-    beta = (log_hl ** 2 + log_hl.shift(1) ** 2).sum()
+    beta = (log_hl**2 + log_hl.shift(1) ** 2).sum()
     gamma = (log_hl + log_hl.shift(1)) ** 2
     gamma = gamma.sum()
     beta = float(beta)

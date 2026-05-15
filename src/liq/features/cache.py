@@ -32,6 +32,7 @@ Example:
 from __future__ import annotations
 
 import hashlib
+import importlib
 import logging
 import os
 from datetime import UTC, datetime
@@ -66,12 +67,9 @@ except Exception:
 
 # Try to import xxhash for faster hashing
 try:
-    import xxhash
-
-    HAS_XXHASH = True
+    xxhash: Any | None = importlib.import_module("xxhash")
 except ImportError:
-    HAS_XXHASH = False
-    xxhash = None  # type: ignore[assignment]
+    xxhash = None
 
 
 @runtime_checkable
@@ -139,12 +137,15 @@ def get_data_hash(df: pl.DataFrame) -> str:
         Hex string hash of the data
     """
     # Serialize DataFrame to bytes
-    data_bytes = df.write_ipc(None).getvalue()
+    buffer = df.write_ipc(None)
+    if buffer is None:
+        msg = "failed to serialize DataFrame for hashing"
+        raise ValueError(msg)
+    data_bytes = buffer.getvalue()
 
-    if HAS_XXHASH:
+    if xxhash is not None:
         return xxhash.xxh64(data_bytes).hexdigest()
-    else:
-        return hashlib.sha256(data_bytes).hexdigest()[:16]
+    return hashlib.sha256(data_bytes).hexdigest()[:16]
 
 
 def compute_cache_key(
@@ -326,6 +327,7 @@ class IndicatorCache:
             indicator: Optional indicator name for index metadata
             params: Optional params dict for index metadata
         """
+        del symbol, timeframe, indicator, params
         self._storage.write(key, df, mode="overwrite")
 
         if not self._index_enabled or current_process().name != "MainProcess":
@@ -379,10 +381,7 @@ class IndicatorCache:
         if index_df.is_empty():
             return 0
         indicators = index_df["indicator"].to_list()
-        matches = [
-            fnmatch.fnmatch(ind.lower(), pattern_lower)
-            for ind in indicators
-        ]
+        matches = [fnmatch.fnmatch(ind.lower(), pattern_lower) for ind in indicators]
         keys = index_df.filter(pl.Series(matches))["key"].to_list()
         for key in keys:
             self._storage.delete(key)
@@ -409,9 +408,11 @@ class IndicatorCache:
     def clear(self) -> None:
         """Clear all cache entries."""
         index_df = self._load_index() if self._index_enabled else pl.DataFrame()
-        keys = index_df["key"].to_list() if not index_df.is_empty() else [
-            k for k in self._storage.list_keys() if "/indicators/" in k
-        ]
+        keys = (
+            index_df["key"].to_list()
+            if not index_df.is_empty()
+            else [k for k in self._storage.list_keys() if "/indicators/" in k]
+        )
         for key in keys:
             self._storage.delete(key)
         if self._index_enabled and self._storage.exists(self._index_key):
@@ -426,9 +427,11 @@ class IndicatorCache:
                 - total_size_bytes: Total size of cache in bytes
         """
         index_df = self._load_index() if self._index_enabled else pl.DataFrame()
-        keys = index_df["key"].to_list() if not index_df.is_empty() else [
-            k for k in self._storage.list_keys() if "/indicators/" in k
-        ]
+        keys = (
+            index_df["key"].to_list()
+            if not index_df.is_empty()
+            else [k for k in self._storage.list_keys() if "/indicators/" in k]
+        )
         total_size = 0
         for key in keys:
             try:
@@ -555,9 +558,9 @@ class IndicatorCache:
         # Apply limit and offset from filter
         if filters is not None:
             if filters.offset > 0:
-                entries = entries[filters.offset:]
+                entries = entries[filters.offset :]
             if filters.limit is not None:
-                entries = entries[:filters.limit]
+                entries = entries[: filters.limit]
 
         return entries
 

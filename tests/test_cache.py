@@ -1,7 +1,8 @@
 """Tests for liq.features.cache module."""
 
 import tempfile
-from datetime import UTC, datetime, timedelta
+from collections.abc import Iterator
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import polars as pl
@@ -9,6 +10,8 @@ import pytest
 
 from liq.features.cache import (
     IndicatorCache,
+    _indicator_from_key,
+    _meta_from_key,
     compute_cache_key,
     get_data_hash,
 )
@@ -56,7 +59,7 @@ def sample_result_df() -> pl.DataFrame:
 
 
 @pytest.fixture
-def temp_cache_dir() -> Path:
+def temp_cache_dir() -> Iterator[Path]:
     """Create a temporary cache directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
@@ -207,9 +210,7 @@ class TestIndicatorCache:
         result = cache.get("nonexistent_key")
         assert result is None
 
-    def test_set_and_get(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_set_and_get(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test set stores and get retrieves."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
         key = compute_cache_key(
@@ -328,6 +329,79 @@ class TestIndicatorCache:
 
         stats = cache.stats()
         assert stats["entries"] == 2
+
+
+class TestIndicatorCacheIndexManagement:
+    """Tests for optional index-backed cache operations."""
+
+    def test_index_enabled_rebuild_query_delete_and_list(
+        self, monkeypatch, temp_cache_dir: Path, sample_result_df: pl.DataFrame
+    ) -> None:
+        monkeypatch.setenv("LIQ_FEATURES_INDEX", "on")
+        cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
+        rsi_key = compute_cache_key("BTC_USDT", "1h", "rsi", {"period": 14}, "hash-rsi")
+
+        cache.set(rsi_key, sample_result_df)
+        cache.rebuild_index()
+
+        assert cache.list_indicators() == {"rsi": 1}
+        queried = cache.query_index(symbol="BTC_USDT", timeframe="1h", indicator="r*", limit=1)
+        assert queried.height == 1
+        assert queried["indicator"].item() == "rsi"
+        assert cache.delete_by_indicator("r*") == 1
+        assert not cache.has(rsi_key)
+
+        rebuilt = cache.rebuild_index()
+        assert rebuilt.is_empty()
+
+    def test_index_enabled_delete_clear_and_lockless_context(
+        self, monkeypatch, temp_cache_dir: Path, sample_result_df: pl.DataFrame
+    ) -> None:
+        monkeypatch.setenv("LIQ_FEATURES_INDEX", "on")
+        cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
+        first_key = compute_cache_key("EUR_USD", "1m", "rsi", {"period": 14}, "hash-1")
+        second_key = compute_cache_key("EUR_USD", "1m", "macd", {}, "hash-2")
+
+        cache.set(first_key, sample_result_df)
+        cache.delete(first_key)
+        assert cache.rebuild_index().is_empty()
+
+        with cache.lockless_index(rebuild_on_exit=False):
+            cache.set(second_key, sample_result_df)
+        assert cache.query_index().is_empty()
+        assert cache.rebuild_index().height == 1
+
+        with cache:
+            cache.set(first_key, sample_result_df)
+        rebuilt = cache.rebuild_index()
+        assert rebuilt.height >= 1
+
+        cache.clear()
+        assert cache.rebuild_index().is_empty()
+
+    def test_query_index_disabled_and_empty_paths(
+        self, monkeypatch, temp_cache_dir: Path, sample_result_df: pl.DataFrame
+    ) -> None:
+        monkeypatch.setenv("LIQ_FEATURES_INDEX", "off")
+        cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
+        key = compute_cache_key("BTC_USDT", "1h", "rsi", {"period": 14}, "hash")
+        cache.set(key, sample_result_df)
+
+        assert cache.query_index().is_empty()
+        assert cache.list_indicators() == {}
+        assert cache.delete_by_indicator("r*") == 0
+
+    def test_malformed_storage_keys_are_ignored_by_index(
+        self, monkeypatch, temp_cache_dir: Path, sample_result_df: pl.DataFrame
+    ) -> None:
+        monkeypatch.setenv("LIQ_FEATURES_INDEX", "on")
+        store = ParquetStore(str(temp_cache_dir))
+        store.write("not/an/indicator/key", sample_result_df, mode="overwrite")
+        store.write("BTC_USDT/indicators/rsi/bad-params", sample_result_df, mode="overwrite")
+
+        cache = IndicatorCache(storage=store)
+        assert cache.rebuild_index().is_empty()
+        assert cache.list_entries() == []
 
 
 class TestIndicatorCacheIntegration:
@@ -618,9 +692,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 3
         assert cache.stats()["entries"] == 0
 
-    def test_clean_by_symbol(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_by_symbol(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean filters by symbol."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
@@ -644,9 +716,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 1
         assert cache.stats()["entries"] == 2
 
-    def test_clean_by_indicator(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_by_indicator(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean filters by indicator."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
@@ -670,9 +740,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 2
         assert cache.stats()["entries"] == 1
 
-    def test_clean_dry_run(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_dry_run(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean with dry_run=True doesn't delete."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
@@ -755,9 +823,7 @@ class TestCacheManagerClean:
         assert result.deleted_count == 2  # rsi and macd for BTC_USDT/1h
         assert cache.stats()["entries"] == 2
 
-    def test_clean_no_matches(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_clean_no_matches(self, temp_cache_dir: Path, sample_result_df: pl.DataFrame) -> None:
         """Test clean with criteria that matches nothing."""
         cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
 
@@ -958,9 +1024,7 @@ class TestCacheAgeTracking:
         with pytest.raises(ValidationError):
             CleanupCriteria(older_than="invalid")
 
-    def test_entries_without_timestamp_not_matched_by_older_than(
-        self, temp_cache_dir: Path, sample_result_df: pl.DataFrame
-    ) -> None:
+    def test_entries_without_timestamp_not_matched_by_older_than(self) -> None:
         """Test that entries without created_at are not matched by older_than."""
         from liq.features.cache_models import CleanupCriteria
 
@@ -978,6 +1042,121 @@ class TestCacheAgeTracking:
         criteria = CleanupCriteria(older_than="1d")
         # Should NOT match because we can't determine age
         assert not criteria.matches(entry)
+
+
+class TestCacheMetadataHelpers:
+    """Tests for cache key metadata parsing helpers."""
+
+    def test_indicator_from_key_and_meta_reject_malformed_keys(self) -> None:
+        assert _indicator_from_key("BTC_USDT/indicators/rsi/hash:1h:data") == "rsi"
+        assert _indicator_from_key("BTC_USDT/raw/bars") is None
+        assert _meta_from_key("short") is None
+        assert _meta_from_key("BTC_USDT/raw/bars") is None
+        assert _meta_from_key("BTC_USDT/indicators") is None
+        assert _meta_from_key("indicators/rsi/hash:1h:data") is None
+        assert _meta_from_key("BTC_USDT/indicators/rsi/bad") is None
+
+    def test_write_index_is_noop_when_index_disabled(self, temp_cache_dir: Path) -> None:
+        cache = IndicatorCache(storage=ParquetStore(str(temp_cache_dir)))
+        cache._write_index(pl.DataFrame({"key": ["value"]}))
+        assert cache.storage.list_keys() == []
+
+
+class TestIndicatorCacheFailureBranches:
+    """Tests for defensive cache branches that depend on storage failures."""
+
+    def test_get_empty_cached_frame_returns_none(self) -> None:
+        class EmptyReadStorage:
+            data_root = None
+
+            def exists(self, key: str) -> bool:
+                del key
+                return True
+
+            def read(
+                self, key: str, start: date | None = None, end: date | None = None
+            ) -> pl.DataFrame:
+                del key
+                del start, end
+                return pl.DataFrame()
+
+            def write(self, key: str, data: pl.DataFrame, mode: str = "append") -> None:
+                del key, data, mode
+
+            def read_latest(self, key: str, n: int = 1) -> pl.DataFrame:
+                del key, n
+                return pl.DataFrame()
+
+            def delete(self, key: str) -> bool:
+                del key
+                return False
+
+            def list_keys(self, prefix: str = "") -> list[str]:
+                del prefix
+                return []
+
+            def get_date_range(self, key: str) -> tuple[date, date] | None:
+                del key
+                return None
+
+        cache = IndicatorCache(storage=EmptyReadStorage())
+        assert cache.storage_root is None
+        assert cache.get("BTC_USDT/indicators/rsi/hash:1h:data") is None
+
+    def test_stats_list_and_clean_tolerate_read_and_delete_failures(self, tmp_path: Path) -> None:
+        key = "BTC_USDT/indicators/rsi/hash:1h:data"
+        key_path = tmp_path / key
+        key_path.parent.mkdir(parents=True)
+        key_path.write_text("marker", encoding="utf-8")
+
+        class FailingStorage:
+            data_root = str(tmp_path)
+
+            def list_keys(self, prefix: str = "") -> list[str]:
+                return [
+                    candidate
+                    for candidate in [key, "bad/key", "BTC_USDT/indicators/bad/not-enough"]
+                    if candidate.startswith(prefix)
+                ]
+
+            def exists(self, key: str) -> bool:
+                del key
+                return False
+
+            def read(
+                self, key: str, start: date | None = None, end: date | None = None
+            ) -> pl.DataFrame:
+                del key, start, end
+                raise RuntimeError("read failed")
+
+            def read_latest(self, key: str, n: int = 1) -> pl.DataFrame:
+                del key, n
+                raise RuntimeError("read failed")
+
+            def delete(self, key: str) -> bool:
+                del key
+                raise RuntimeError("delete failed")
+
+            def write(self, key: str, data: pl.DataFrame, mode: str = "append") -> None:
+                del key, data, mode
+
+            def get_date_range(self, key: str) -> tuple[date, date] | None:
+                del key
+                return None
+
+        cache = IndicatorCache(storage=FailingStorage())
+
+        assert cache.storage_root == tmp_path
+        assert cache.stats() == {"entries": 2, "total_size_bytes": 0}
+        entries = cache.list_entries()
+        assert len(entries) == 1
+        assert entries[0].size_bytes == 0
+        assert entries[0].created_at is not None
+
+        result = cache.clean(CleanupCriteria())
+        assert result.deleted_count == 0
+        assert len(result.errors) == 1
+        assert "Failed to delete" in result.errors[0]
 
 
 class TestCacheCleanupPerformance:

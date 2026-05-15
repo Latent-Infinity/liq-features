@@ -14,14 +14,16 @@ def test_cli_compute_stores_feature(tmp_path: Path) -> None:
     data_path = tmp_path / "bars.parquet"
     store_root = tmp_path / "store"
 
-    df = pl.DataFrame({
-        "timestamp": [datetime(2024, 1, 1, tzinfo=UTC)],
-        "open": [1.0],
-        "high": [2.0],
-        "low": [0.5],
-        "close": [1.5],
-        "volume": [10.0],
-    })
+    df = pl.DataFrame(
+        {
+            "timestamp": [datetime(2024, 1, 1, tzinfo=UTC)],
+            "open": [1.0],
+            "high": [2.0],
+            "low": [0.5],
+            "close": [1.5],
+            "volume": [10.0],
+        }
+    )
     df.write_parquet(data_path)
 
     result = runner.invoke(

@@ -115,12 +115,7 @@ class BaseIndicator(ABC):
             df_for_compute = df.with_columns(pl.col(self._input_column).alias("close"))
 
         cache_key = None
-        if (
-            self._storage is not None
-            and use_cache
-            and symbol
-            and timeframe
-        ):
+        if self._storage is not None and use_cache and symbol and timeframe:
             params_hash = hash_params(
                 {**self._params, "input": self._input_column, "component": component or "all"}
             )
@@ -164,4 +159,6 @@ class BaseIndicator(ABC):
         """Return a specific component column when requested."""
         if component is None or component not in df.columns:
             return df
-        return df.select([col for col in df.columns if col == component or col == "ts" or col == "timestamp"])
+        return df.select(
+            [col for col in df.columns if col == component or col == "ts" or col == "timestamp"]
+        )

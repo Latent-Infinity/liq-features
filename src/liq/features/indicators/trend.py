@@ -250,8 +250,7 @@ class ADX(BaseIndicator):
                 ).alias("tr"),
                 # +DM = high - prev_high (if positive and > low - prev_low)
                 pl.when(
-                    (pl.col("high") - pl.col("prev_high"))
-                    > (pl.col("prev_low") - pl.col("low"))
+                    (pl.col("high") - pl.col("prev_high")) > (pl.col("prev_low") - pl.col("low"))
                 )
                 .then(
                     pl.when(pl.col("high") - pl.col("prev_high") > 0)
@@ -262,8 +261,7 @@ class ADX(BaseIndicator):
                 .alias("plus_dm"),
                 # -DM = prev_low - low (if positive and > high - prev_high)
                 pl.when(
-                    (pl.col("prev_low") - pl.col("low"))
-                    > (pl.col("high") - pl.col("prev_high"))
+                    (pl.col("prev_low") - pl.col("low")) > (pl.col("high") - pl.col("prev_high"))
                 )
                 .then(
                     pl.when(pl.col("prev_low") - pl.col("low") > 0)
@@ -463,9 +461,7 @@ class ATR_Midrange(BaseIndicator):
 
         # Compute midrange if not present
         if input_col not in df.columns:
-            df = df.with_columns(
-                [((pl.col("high") + pl.col("low")) / 2).alias(input_col)]
-            )
+            df = df.with_columns([((pl.col("high") + pl.col("low")) / 2).alias(input_col)])
 
         # Calculate True Range using midrange instead of close
         result = df.select(
@@ -530,9 +526,7 @@ class ADX_Midrange(BaseIndicator):
 
         # Compute midrange if not present
         if input_col not in df.columns:
-            df = df.with_columns(
-                [((pl.col("high") + pl.col("low")) / 2).alias(input_col)]
-            )
+            df = df.with_columns([((pl.col("high") + pl.col("low")) / 2).alias(input_col)])
 
         # Calculate directional movement using midrange
         result = df.select(
@@ -556,8 +550,7 @@ class ADX_Midrange(BaseIndicator):
                 ).alias("tr"),
                 # +DM = high - prev_high (if positive and > low - prev_low)
                 pl.when(
-                    (pl.col("high") - pl.col("prev_high"))
-                    > (pl.col("prev_low") - pl.col("low"))
+                    (pl.col("high") - pl.col("prev_high")) > (pl.col("prev_low") - pl.col("low"))
                 )
                 .then(
                     pl.when(pl.col("high") - pl.col("prev_high") > 0)
@@ -568,8 +561,7 @@ class ADX_Midrange(BaseIndicator):
                 .alias("plus_dm"),
                 # -DM = prev_low - low (if positive and > high - prev_high)
                 pl.when(
-                    (pl.col("prev_low") - pl.col("low"))
-                    > (pl.col("high") - pl.col("prev_high"))
+                    (pl.col("prev_low") - pl.col("low")) > (pl.col("high") - pl.col("prev_high"))
                 )
                 .then(
                     pl.when(pl.col("prev_low") - pl.col("low") > 0)

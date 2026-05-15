@@ -53,9 +53,11 @@ class TestTripleBarrierLabelsOriginal:
 
     def test_triple_barrier_basic(self) -> None:
         """Test basic triple barrier labeling."""
-        df = pl.DataFrame({
-            "close": [100.0, 102.0, 104.0, 103.0, 105.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 102.0, 104.0, 103.0, 105.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.03,
@@ -71,9 +73,11 @@ class TestTripleBarrierLabelsOriginal:
     def test_triple_barrier_profit_hit(self) -> None:
         """Test label=1 when profit target is hit."""
         # Price goes up 5% immediately
-        df = pl.DataFrame({
-            "close": [100.0, 105.0, 106.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 105.0, 106.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.04,
@@ -89,9 +93,11 @@ class TestTripleBarrierLabelsOriginal:
     def test_triple_barrier_loss_hit(self) -> None:
         """Test label=-1 when stop loss is hit."""
         # Price goes down 3% immediately
-        df = pl.DataFrame({
-            "close": [100.0, 97.0, 96.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 97.0, 96.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.05,
@@ -107,13 +113,15 @@ class TestTripleBarrierLabelsOriginal:
     def test_triple_barrier_timeout(self) -> None:
         """Test label=0 when max holding is reached without hitting barriers."""
         # Price barely moves
-        df = pl.DataFrame({
-            "close": [100.0, 100.5, 100.2, 100.3, 100.1],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 100.5, 100.2, 100.3, 100.1],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.10,  # 10% - won't hit
-            stop_loss=0.10,   # 10% - won't hit
+            stop_loss=0.10,  # 10% - won't hit
             max_holding=2,
         )
 
@@ -139,6 +147,7 @@ class TestTripleBarrierLabelsAdaptive:
         """Test adaptive labeling with default config (2σ thresholds)."""
         # Create price series with some volatility
         import random
+
         random.seed(42)
         n = 100
         prices = [100.0]
@@ -158,9 +167,11 @@ class TestTripleBarrierLabelsAdaptive:
 
     def test_adaptive_fixed_thresholds(self) -> None:
         """Test adaptive function with fixed thresholds (no std-based)."""
-        df = pl.DataFrame({
-            "close": [100.0, 102.0, 104.0, 103.0, 105.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 102.0, 104.0, 103.0, 105.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.03,
@@ -176,13 +187,34 @@ class TestTripleBarrierLabelsAdaptive:
     def test_adaptive_profit_label(self) -> None:
         """Test that profit target hit returns label=1."""
         # Create scenario where price rises significantly
-        df = pl.DataFrame({
-            "close": [100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 110.0],  # Big jump at the end
-        })
+        df = pl.DataFrame(
+            {
+                "close": [
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    110.0,
+                ],  # Big jump at the end
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.05,  # 5% profit target
@@ -200,13 +232,34 @@ class TestTripleBarrierLabelsAdaptive:
     def test_adaptive_loss_label(self) -> None:
         """Test that stop loss hit returns label=-1."""
         # Create scenario where price drops significantly
-        df = pl.DataFrame({
-            "close": [100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 100.0, 100.0, 100.0, 100.0,
-                      100.0, 90.0],  # Big drop at the end
-        })
+        df = pl.DataFrame(
+            {
+                "close": [
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    100.0,
+                    90.0,
+                ],  # Big drop at the end
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.05,
@@ -223,9 +276,11 @@ class TestTripleBarrierLabelsAdaptive:
     def test_adaptive_timeout_label(self) -> None:
         """Test that timeout returns label=0."""
         # Create flat price series
-        df = pl.DataFrame({
-            "close": [100.0] * 50,
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0] * 50,
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.10,  # 10% - won't hit with flat prices
@@ -238,13 +293,14 @@ class TestTripleBarrierLabelsAdaptive:
 
         # With flat prices, all labels should be timeout (0)
         # (except possibly last few positions)
-        timeout_count = sum(1 for l in labels if l == 0)
+        timeout_count = sum(1 for label in labels if label == 0)
         assert timeout_count > len(labels) // 2
 
     def test_adaptive_volatility_based_thresholds(self) -> None:
         """Test that volatility-based thresholds adapt to market conditions."""
         # High volatility period
         import random
+
         random.seed(42)
         high_vol_prices = [100.0]
         for _ in range(49):
@@ -269,9 +325,11 @@ class TestTripleBarrierLabelsAdaptive:
 
     def test_adaptive_returns_dataframe(self) -> None:
         """Test that adaptive function returns DataFrame with label column."""
-        df = pl.DataFrame({
-            "close": [100.0, 101.0, 102.0, 101.5, 103.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0, 101.5, 103.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.02,
@@ -287,9 +345,11 @@ class TestTripleBarrierLabelsAdaptive:
 
     def test_adaptive_backward_compatible_with_original(self) -> None:
         """Test that adaptive function with fixed thresholds matches original."""
-        df = pl.DataFrame({
-            "close": [100.0, 102.0, 99.0, 101.0, 103.0, 98.0, 100.0],
-        })
+        df = pl.DataFrame(
+            {
+                "close": [100.0, 102.0, 99.0, 101.0, 103.0, 98.0, 100.0],
+            }
+        )
 
         cfg = TripleBarrierConfig(
             take_profit=0.02,

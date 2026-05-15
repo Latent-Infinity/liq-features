@@ -102,8 +102,10 @@ def compute_indicators(
             indicator_result = indicator_result.rename(rename_map)
 
         # Join on timestamp
-        join_col = ts_col if ts_col in indicator_result.columns else (
-            "ts" if "ts" in indicator_result.columns else "timestamp"
+        join_col = (
+            ts_col
+            if ts_col in indicator_result.columns
+            else ("ts" if "ts" in indicator_result.columns else "timestamp")
         )
         result_join_col = ts_col
 
@@ -150,19 +152,23 @@ def cache_stats(storage: TimeSeriesStore) -> pl.DataFrame:
     indicator_keys = [k for k in all_keys if "/indicators/" in k]
 
     if not indicator_keys:
-        return pl.DataFrame({
-            "indicator": [],
-            "timeframe": [],
-            "params_id": [],
-            "row_count": [],
-            "size_mb": [],
-        }).cast({
-            "indicator": pl.Utf8,
-            "timeframe": pl.Utf8,
-            "params_id": pl.Utf8,
-            "row_count": pl.Int64,
-            "size_mb": pl.Float64,
-        })
+        return pl.DataFrame(
+            {
+                "indicator": [],
+                "timeframe": [],
+                "params_id": [],
+                "row_count": [],
+                "size_mb": [],
+            }
+        ).cast(
+            {
+                "indicator": pl.Utf8,
+                "timeframe": pl.Utf8,
+                "params_id": pl.Utf8,
+                "row_count": pl.Int64,
+                "size_mb": pl.Float64,
+            }
+        )
 
     rows = []
     for key in indicator_keys:
@@ -189,12 +195,14 @@ def cache_stats(storage: TimeSeriesStore) -> pl.DataFrame:
                 row_count = 0
                 size_mb = 0.0
 
-            rows.append({
-                "indicator": indicator_name,
-                "timeframe": timeframe,
-                "params_id": params_id,
-                "row_count": row_count,
-                "size_mb": round(size_mb, 4),
-            })
+            rows.append(
+                {
+                    "indicator": indicator_name,
+                    "timeframe": timeframe,
+                    "params_id": params_id,
+                    "row_count": row_count,
+                    "size_mb": round(size_mb, 4),
+                }
+            )
 
     return pl.DataFrame(rows)

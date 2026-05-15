@@ -8,12 +8,14 @@ from liq.features.derived import compute_derived_fields
 
 
 def test_compute_derived_fields_prd_formulas() -> None:
-    df = pl.DataFrame({
-        "open": [1.0, 2.0],
-        "high": [2.0, 3.0],
-        "low": [0.5, 1.5],
-        "close": [1.5, 2.5],
-    })
+    df = pl.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [2.0, 3.0],
+            "low": [0.5, 1.5],
+            "close": [1.5, 2.5],
+        }
+    )
 
     result = compute_derived_fields(df)
     assert "midrange" in result.columns

@@ -13,6 +13,7 @@ Cohen's d interpretation:
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -56,9 +57,7 @@ def pooled_std(
     n2 = len(group2)
 
     if n1 < 2 or n2 < 2:
-        raise ValueError(
-            f"Each group must have at least 2 samples (got n1={n1}, n2={n2})"
-        )
+        raise ValueError(f"Each group must have at least 2 samples (got n1={n1}, n2={n2})")
 
     var1 = np.var(group1, ddof=1)
     var2 = np.var(group2, ddof=1)
@@ -108,8 +107,7 @@ def cohens_d(
 
     if pstd == 0:
         raise ValueError(
-            "Cannot compute Cohen's d: pooled variance is zero "
-            "(both groups have identical values)"
+            "Cannot compute Cohen's d: pooled variance is zero (both groups have identical values)"
         )
 
     mean1 = np.mean(group1)
@@ -156,8 +154,12 @@ def cohens_d_ci(
     n2 = len(group2)
 
     log_function_entry(
-        logger, "cohens_d_ci",
-        n1=n1, n2=n2, n_bootstrap=n_bootstrap, confidence_level=confidence_level,
+        logger,
+        "cohens_d_ci",
+        n1=n1,
+        n2=n2,
+        n_bootstrap=n_bootstrap,
+        confidence_level=confidence_level,
     )
 
     logger.info(f"Computing Cohen's d with {n_bootstrap} bootstrap iterations")
@@ -199,8 +201,10 @@ def cohens_d_ci(
     interpretation = EffectSizeResult.interpret_cohens_d(d)
 
     log_result(
-        logger, "Bootstrap CI computed",
-        d=f"{d:.4f}", ci=f"[{ci_lower:.4f}, {ci_upper:.4f}]",
+        logger,
+        "Bootstrap CI computed",
+        d=f"{d:.4f}",
+        ci=f"[{ci_lower:.4f}, {ci_upper:.4f}]",
         interpretation=interpretation,
     )
     log_function_exit(logger, "cohens_d_ci", f"d={d:.4f}, {interpretation}")
@@ -220,8 +224,8 @@ def cohens_d_ci(
 
 
 def batch_cohens_d(
-    mi_close: dict[str, float],
-    mi_midrange: dict[str, float],
+    mi_close: Mapping[str, Sequence[float] | NDArray[np.floating]],
+    mi_midrange: Mapping[str, Sequence[float] | NDArray[np.floating]],
     *,
     n_bootstrap: int = 1000,
     confidence_level: float = 0.95,

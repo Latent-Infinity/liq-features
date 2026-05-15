@@ -136,10 +136,7 @@ def triple_barrier_labels_adaptive(
         for i in range(n):
             if i < window:
                 # Not enough data for full window
-                if i > 0:
-                    std = _compute_std(returns[: i + 1])
-                else:
-                    std = 0.01  # Default volatility
+                std = _compute_std(returns[: i + 1]) if i > 0 else 0.01  # Default volatility
             else:
                 std = _compute_std(returns[i - window + 1 : i + 1])
             rolling_std.append(std if std > 0 else 0.01)

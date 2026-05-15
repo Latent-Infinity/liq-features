@@ -38,30 +38,26 @@ class TestValidateOOS:
         # Target depends on x1 and x2
         y = 0.7 * x1 + 0.3 * x2 + rng.normal(0, 0.2, n)
 
-        df = pl.DataFrame({
-            "feature_1": x1,
-            "feature_2": x2,
-            "feature_3": x3,
-        })
+        df = pl.DataFrame(
+            {
+                "feature_1": x1,
+                "feature_2": x2,
+                "feature_3": x3,
+            }
+        )
         target = pl.Series("target", y)
 
         return df, target
 
-    def test_returns_oos_result(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_returns_oos_result(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should return OutOfSampleResult."""
         X, y = synthetic_data
 
-        result = validate_oos(
-            X, y, features=["feature_1", "feature_2"], test_ratio=0.2
-        )
+        result = validate_oos(X, y, features=["feature_1", "feature_2"], test_ratio=0.2)
 
         assert isinstance(result, OutOfSampleResult)
 
-    def test_train_test_sizes(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_train_test_sizes(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should correctly split data."""
         X, y = synthetic_data
 
@@ -83,9 +79,7 @@ class TestValidateOOS:
         assert set(result.train_mi.keys()) == set(features)
         assert set(result.test_mi.keys()) == set(features)
 
-    def test_rankings_computed(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_rankings_computed(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should compute rankings for all features."""
         X, y = synthetic_data
         features = ["feature_1", "feature_2", "feature_3"]
@@ -120,9 +114,7 @@ class TestValidateOOS:
         # For stable synthetic data, correlation should be high
         assert result.spearman_correlation > 0.5
 
-    def test_temporal_split(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_temporal_split(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Temporal split should use first n% for training."""
         X, y = synthetic_data
 
@@ -131,9 +123,7 @@ class TestValidateOOS:
         assert result.temporal_split is True
         # With temporal split, train is first 80%, test is last 20%
 
-    def test_shuffled_split(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_shuffled_split(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Non-temporal split should shuffle data."""
         X, y = synthetic_data
 
@@ -141,9 +131,7 @@ class TestValidateOOS:
 
         assert result.temporal_split is False
 
-    def test_is_stable_true(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_is_stable_true(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """is_stable should be True for high correlation."""
         X, y = synthetic_data
 
@@ -152,9 +140,7 @@ class TestValidateOOS:
         if result.spearman_correlation > 0.8:
             assert result.is_stable is True
 
-    def test_top_k_overlap(
-        self, synthetic_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_top_k_overlap(self, synthetic_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """top_k_overlap should be computed correctly."""
         X, y = synthetic_data
 
@@ -170,12 +156,8 @@ class TestValidateOOS:
         """Results should be reproducible with same random_state."""
         X, y = synthetic_data
 
-        result1 = validate_oos(
-            X, y, test_ratio=0.2, temporal=False, random_state=42
-        )
-        result2 = validate_oos(
-            X, y, test_ratio=0.2, temporal=False, random_state=42
-        )
+        result1 = validate_oos(X, y, test_ratio=0.2, temporal=False, random_state=42)
+        result2 = validate_oos(X, y, test_ratio=0.2, temporal=False, random_state=42)
 
         assert result1.train_mi == result2.train_mi
         assert result1.test_mi == result2.test_mi

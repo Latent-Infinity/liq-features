@@ -59,7 +59,9 @@ class TestAutoRegistration:
 
         # Check at least some are marked as hardcoded
         hardcoded = [ind for ind in indicators if ind.get("source") == "hardcoded"]
-        assert len(hardcoded) >= 8, f"Expected at least 8 hardcoded indicators, got {len(hardcoded)}"
+        assert len(hardcoded) >= 8, (
+            f"Expected at least 8 hardcoded indicators, got {len(hardcoded)}"
+        )
 
 
 class TestConfigureDefaults:
@@ -85,9 +87,7 @@ class TestConfigureDefaults:
         from liq.features import configure_defaults
         from liq.features.indicators import get_indicator
 
-        configure_defaults({
-            "macd": {"fast_period": 8, "slow_period": 21, "signal_period": 5}
-        })
+        configure_defaults({"macd": {"fast_period": 8, "slow_period": 21, "signal_period": 5}})
 
         MACD = get_indicator("macd")
         macd = MACD()
@@ -96,9 +96,7 @@ class TestConfigureDefaults:
         assert macd.params["signal_period"] == 5
 
         # Reset
-        configure_defaults({
-            "macd": {"fast_period": 12, "slow_period": 26, "signal_period": 9}
-        })
+        configure_defaults({"macd": {"fast_period": 12, "slow_period": 26, "signal_period": 9}})
 
     def test_explicit_params_override_configured_defaults(self) -> None:
         """Test that explicit params take precedence over configured defaults."""
@@ -142,6 +140,7 @@ class TestComputeIndicators:
         """Create sample OHLCV bars for testing."""
         import random
         from datetime import timedelta
+
         random.seed(42)
 
         n = 100
@@ -156,15 +155,17 @@ class TestComputeIndicators:
             price += change
             prices.append(price)
 
-        return pl.DataFrame({
-            "ts": timestamps,
-            "timestamp": timestamps,
-            "open": [p - random.uniform(0, 0.2) for p in prices],
-            "high": [p + random.uniform(0, 0.3) for p in prices],
-            "low": [p - random.uniform(0, 0.3) for p in prices],
-            "close": prices,
-            "volume": [random.uniform(1000, 5000) for _ in range(n)],
-        })
+        return pl.DataFrame(
+            {
+                "ts": timestamps,
+                "timestamp": timestamps,
+                "open": [p - random.uniform(0, 0.2) for p in prices],
+                "high": [p + random.uniform(0, 0.3) for p in prices],
+                "low": [p - random.uniform(0, 0.3) for p in prices],
+                "close": prices,
+                "volume": [random.uniform(1000, 5000) for _ in range(n)],
+            }
+        )
 
     def test_compute_indicators_returns_merged_dataframe(
         self, sample_bars: pl.DataFrame, tmp_path: Path
@@ -192,9 +193,7 @@ class TestComputeIndicators:
         assert any("rsi" in col.lower() for col in result.columns)
         assert any("ema" in col.lower() or "value" in col.lower() for col in result.columns)
 
-    def test_compute_indicators_uses_cache(
-        self, sample_bars: pl.DataFrame, tmp_path: Path
-    ) -> None:
+    def test_compute_indicators_uses_cache(self, sample_bars: pl.DataFrame, tmp_path: Path) -> None:
         """Test compute_indicators caches results."""
         from liq.features import compute_indicators
         from liq.store.parquet import ParquetStore
@@ -279,12 +278,14 @@ class TestCacheStats:
         storage = ParquetStore(str(tmp_path))
 
         # Compute an indicator
-        df = pl.DataFrame({
-            "ts": [datetime(2024, 1, 1, tzinfo=UTC) + timedelta(minutes=i) for i in range(50)],
-            "close": [100.0 + i * 0.1 for i in range(50)],
-            "high": [101.0 + i * 0.1 for i in range(50)],
-            "low": [99.0 + i * 0.1 for i in range(50)],
-        })
+        df = pl.DataFrame(
+            {
+                "ts": [datetime(2024, 1, 1, tzinfo=UTC) + timedelta(minutes=i) for i in range(50)],
+                "close": [100.0 + i * 0.1 for i in range(50)],
+                "high": [101.0 + i * 0.1 for i in range(50)],
+                "low": [99.0 + i * 0.1 for i in range(50)],
+            }
+        )
 
         RSI = get_indicator("rsi")
         rsi = RSI(storage=storage, params={"period": 14})
@@ -305,22 +306,21 @@ class TestIncompleteBarHandling:
 
         # 75 minutes of data = 1 complete hour + 15 minutes partial
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
-            for i in range(75)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i) for i in range(75)
         ]
 
-        return pl.DataFrame({
-            "timestamp": timestamps,
-            "open": [100.0 + i * 0.01 for i in range(75)],
-            "high": [100.5 + i * 0.01 for i in range(75)],
-            "low": [99.5 + i * 0.01 for i in range(75)],
-            "close": [100.2 + i * 0.01 for i in range(75)],
-            "volume": [1000.0 for _ in range(75)],
-        })
+        return pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "open": [100.0 + i * 0.01 for i in range(75)],
+                "high": [100.5 + i * 0.01 for i in range(75)],
+                "low": [99.5 + i * 0.01 for i in range(75)],
+                "close": [100.2 + i * 0.01 for i in range(75)],
+                "volume": [1000.0 for _ in range(75)],
+            }
+        )
 
-    def test_include_incomplete_true_includes_partial_bar(
-        self, minute_bars: pl.DataFrame
-    ) -> None:
+    def test_include_incomplete_true_includes_partial_bar(self, minute_bars: pl.DataFrame) -> None:
         """Test include_incomplete=True includes the partial final bar."""
         from liq.features.aggregation import Aggregator
 
@@ -334,9 +334,7 @@ class TestIncompleteBarHandling:
         # Should have 2 bars: 00:00-01:00 (complete) and 01:00-02:00 (partial)
         assert len(result) == 2
 
-    def test_include_incomplete_false_excludes_partial_bar(
-        self, minute_bars: pl.DataFrame
-    ) -> None:
+    def test_include_incomplete_false_excludes_partial_bar(self, minute_bars: pl.DataFrame) -> None:
         """Test include_incomplete=False excludes the partial final bar."""
         from liq.features.aggregation import Aggregator
 
@@ -350,9 +348,7 @@ class TestIncompleteBarHandling:
         # Should only have 1 bar: 00:00-01:00 (complete)
         assert len(result) == 1
 
-    def test_include_incomplete_default_is_false(
-        self, minute_bars: pl.DataFrame
-    ) -> None:
+    def test_include_incomplete_default_is_false(self, minute_bars: pl.DataFrame) -> None:
         """Test include_incomplete defaults to False per PRD."""
         from liq.features.aggregation import Aggregator
 
@@ -375,18 +371,19 @@ class TestIncompleteBarHandling:
 
         # Exactly 2 hours of data
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
-            for i in range(120)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i) for i in range(120)
         ]
 
-        df = pl.DataFrame({
-            "timestamp": timestamps,
-            "open": [100.0] * 120,
-            "high": [101.0] * 120,
-            "low": [99.0] * 120,
-            "close": [100.5] * 120,
-            "volume": [1000.0] * 120,
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "open": [100.0] * 120,
+                "high": [101.0] * 120,
+                "low": [99.0] * 120,
+                "close": [100.5] * 120,
+                "volume": [1000.0] * 120,
+            }
+        )
 
         agg = Aggregator(source_timeframe="1m", target_timeframe="1h")
 
@@ -404,18 +401,19 @@ class TestIncompleteBarHandling:
 
         # Only 30 minutes of data
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
-            for i in range(30)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i) for i in range(30)
         ]
 
-        df = pl.DataFrame({
-            "timestamp": timestamps,
-            "open": [100.0] * 30,
-            "high": [101.0] * 30,
-            "low": [99.0] * 30,
-            "close": [100.5] * 30,
-            "volume": [1000.0] * 30,
-        })
+        df = pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "open": [100.0] * 30,
+                "high": [101.0] * 30,
+                "low": [99.0] * 30,
+                "close": [100.5] * 30,
+                "volume": [1000.0] * 30,
+            }
+        )
 
         agg = Aggregator(source_timeframe="1m", target_timeframe="1h")
 
@@ -433,21 +431,20 @@ class TestIncompleteBarHandling:
 
         # 75 minutes
         timestamps = [
-            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i)
-            for i in range(75)
+            datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(minutes=i) for i in range(75)
         ]
 
-        df = pl.DataFrame({
-            "timestamp": timestamps,
-            "open": [100.0] * 75,
-            "high": [101.0] * 75,
-            "low": [99.0] * 75,
-            "close": [100.5] * 75,
-            "volume": [1000.0] * 75,
-        })
-
-        result = aggregate_to_timeframe(
-            df, "1m", "1h", include_incomplete=False
+        df = pl.DataFrame(
+            {
+                "timestamp": timestamps,
+                "open": [100.0] * 75,
+                "high": [101.0] * 75,
+                "low": [99.0] * 75,
+                "close": [100.5] * 75,
+                "volume": [1000.0] * 75,
+            }
         )
+
+        result = aggregate_to_timeframe(df, "1m", "1h", include_incomplete=False)
 
         assert len(result) == 1

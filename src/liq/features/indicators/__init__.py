@@ -33,8 +33,8 @@ from liq.features.indicators.param_grids import (
 from liq.features.indicators.registry import (
     configure_defaults,
     get_indicator,
-    list_indicators,
     get_indicator_metadata,
+    list_indicators,
     reset_defaults,
 )
 from liq.features.indicators.zigzag import zigzag_pivots

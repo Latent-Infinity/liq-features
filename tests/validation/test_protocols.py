@@ -28,9 +28,7 @@ class TestValidatorProtocol:
 
     def test_protocol_is_runtime_checkable(self) -> None:
         """Validator protocol should be runtime checkable."""
-        assert hasattr(Validator, "__protocol_attrs__") or hasattr(
-            Validator, "__subclasshook__"
-        )
+        assert hasattr(Validator, "__protocol_attrs__") or hasattr(Validator, "__subclasshook__")
 
     def test_valid_implementation_satisfies_protocol(self) -> None:
         """A class with validate method should satisfy Validator."""
@@ -38,8 +36,8 @@ class TestValidatorProtocol:
         class MockValidator:
             def validate(
                 self,
-                X: pl.DataFrame,
-                y: pl.Series,
+                _X: pl.DataFrame,
+                _y: pl.Series,
                 features: list[str],
             ) -> OutOfSampleResult:
                 return OutOfSampleResult(
@@ -82,7 +80,7 @@ class TestMetricCalculatorProtocol:
         """A class with calculate method should satisfy MetricCalculator."""
 
         class MockMetricCalculator:
-            def calculate(self, x: pl.Series, y: pl.Series) -> float:
+            def calculate(self, _x: pl.Series, _y: pl.Series) -> float:
                 return 0.5
 
         calculator = MockMetricCalculator()
@@ -92,7 +90,7 @@ class TestMetricCalculatorProtocol:
         """A class without calculate method should not satisfy MetricCalculator."""
 
         class InvalidCalculator:
-            def compute(self, x: pl.Series, y: pl.Series) -> float:
+            def compute(self, _x: pl.Series, _y: pl.Series) -> float:
                 return 0.5
 
         invalid = InvalidCalculator()
@@ -114,9 +112,9 @@ class TestTemporalAnalyzerProtocol:
         class MockTemporalAnalyzer:
             def analyze(
                 self,
-                df: pl.DataFrame,
-                X: pl.DataFrame,
-                y: pl.Series,
+                _df: pl.DataFrame,
+                _X: pl.DataFrame,
+                _y: pl.Series,
                 features: list[str],
                 window_size: int,
             ) -> TemporalStabilityResult:
@@ -127,9 +125,7 @@ class TestTemporalAnalyzerProtocol:
                     n_windows=5,
                     window_starts=[0, 100, 200, 300, 400],
                     mi_by_window=[dict.fromkeys(features, 0.1) for _ in range(5)],
-                    rank_by_window=[
-                        {f: i for i, f in enumerate(features)} for _ in range(5)
-                    ],
+                    rank_by_window=[{f: i for i, f in enumerate(features)} for _ in range(5)],
                     adjacent_correlations=[0.9, 0.85, 0.88, 0.92],
                     mean_correlation=0.89,
                     min_correlation=0.85,
@@ -164,8 +160,8 @@ class TestEffectSizeCalculatorProtocol:
         class MockEffectSizeCalculator:
             def calculate(
                 self,
-                group1: pl.Series,
-                group2: pl.Series,
+                _group1: pl.Series,
+                _group2: pl.Series,
             ) -> EffectSizeResult:
                 return EffectSizeResult(
                     cohens_d=0.5,
@@ -197,8 +193,8 @@ class TestSensitivityAnalyzerProtocol:
         class MockSensitivityAnalyzer:
             def analyze(
                 self,
-                X: pl.DataFrame,
-                y: pl.Series,
+                _X: pl.DataFrame,
+                _y: pl.Series,
                 features: list[str],
                 parameter_values: list,
             ) -> SensitivityResult:

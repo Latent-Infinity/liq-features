@@ -1,6 +1,5 @@
 """Tests for indicator parameter grid enumeration."""
 
-
 from liq.features.indicators import (
     DEFAULT_PARAM_GRIDS,
     IndicatorSpec,
@@ -12,7 +11,12 @@ from liq.features.indicators.param_grids import (
     FAST_PERIOD_VARIATIONS_COARSE,
     PERIOD_VARIATIONS_COARSE,
     SLOW_PERIOD_VARIATIONS_COARSE,
+    auto_generate_param_grid,
     generate_fibonacci_period_pairs,
+    generate_liq_ta_param_grids,
+    get_fibonacci_periods_for_bars,
+    get_periods_for_timeframe,
+    get_single_price_indicators,
 )
 
 
@@ -154,9 +158,11 @@ class TestCountCombinations:
 
     def test_multiple_params(self) -> None:
         """Test counting with multiple parameters."""
-        count = count_combinations({
-            "bbands": {"period": [10, 20], "std_dev": [1.5, 2.0]},
-        })
+        count = count_combinations(
+            {
+                "bbands": {"period": [10, 20], "std_dev": [1.5, 2.0]},
+            }
+        )
         assert count == 4  # 2 * 2
 
     def test_empty_params(self) -> None:
@@ -280,3 +286,123 @@ class TestCoarsePeriodVariations:
     def test_slow_variations_coarse(self) -> None:
         """Test SLOW_PERIOD_VARIATIONS_COARSE values."""
         assert SLOW_PERIOD_VARIATIONS_COARSE == [8, 21, 55]
+
+
+class TestDynamicParamGridGeneration:
+    """Tests for data-size-aware and dynamic liq-ta parameter grids."""
+
+    def test_get_fibonacci_periods_for_bars_applies_sample_and_explicit_limits(self) -> None:
+        assert get_fibonacci_periods_for_bars(2_000) == [2, 3, 5, 8, 13, 21, 34, 55, 89]
+        assert get_fibonacci_periods_for_bars(2_000, max_period=21) == [2, 3, 5, 8, 13, 21]
+
+    def test_get_periods_for_timeframe_uses_defaults_for_unknown_timeframe(self) -> None:
+        assert get_periods_for_timeframe("1d")[-1] == 89
+        assert get_periods_for_timeframe("unknown")[-1] == 377
+
+    def test_auto_generate_param_grid_maps_parameter_kinds(self) -> None:
+        grid = auto_generate_param_grid(
+            {
+                "name": "custom",
+                "parameters": {
+                    "fastperiod": 12,
+                    "slowperiod": 26,
+                    "timeperiod": 14,
+                    "acceleration": 0.02,
+                    "maximum": 0.2,
+                    "nbdevup": 2.0,
+                    "matype": 0,
+                    "signalperiod": 9,
+                    "price": "close",
+                },
+            },
+            use_coarse=True,
+            max_period=21,
+        )
+
+        assert grid["fastperiod"] == [5, 8, 21]
+        assert grid["slowperiod"] == [8, 21]
+        assert grid["timeperiod"] == [5, 8, 21]
+        assert grid["acceleration"] == [0.01, 0.02, 0.04]
+        assert grid["maximum"] == [0.1, 0.2, 0.30000000000000004]
+        assert grid["nbdevup"] == [1.5, 2.0, 2.5, 3.0]
+        assert grid["matype"] == [0, 1, 2]
+        assert grid["signalperiod"] == [5, 8, 21]
+        assert grid["price"] == ["close"]
+
+    def test_auto_generate_param_grid_handles_no_parameters_and_zero_defaults(self) -> None:
+        assert auto_generate_param_grid({"parameters": {}}) == {}
+        grid = auto_generate_param_grid(
+            {"parameters": {"acceleration": 0.0, "maximum": 0.0}},
+        )
+        assert grid["acceleration"] == [0.01, 0.02, 0.04]
+        assert grid["maximum"] == [0.1, 0.2, 0.4]
+
+    def test_generate_liq_ta_param_grids_filters_and_adds_midrange(self, monkeypatch) -> None:
+        dynamic = [
+            {
+                "name": "rsi",
+                "group": "Momentum Indicators",
+                "inputs": ["real"],
+                "parameters": {"timeperiod": 14},
+            },
+            {
+                "name": "cdldoji",
+                "group": "Pattern Recognition",
+                "inputs": ["open", "high"],
+                "parameters": {},
+            },
+            {
+                "name": "min",
+                "group": "Math Operators",
+                "inputs": ["real"],
+                "parameters": {"timeperiod": 14},
+            },
+            {
+                "name": "custom",
+                "group": "Momentum Indicators",
+                "inputs": ["price"],
+                "parameters": {"timeperiod": 14},
+            },
+        ]
+        monkeypatch.setattr(
+            "liq.features.indicators.liq_ta.list_dynamic_indicators", lambda: dynamic
+        )
+
+        grids = generate_liq_ta_param_grids(
+            include_only=["rsi", "custom", "cdldoji", "min"],
+            include_midrange=True,
+            use_coarse=True,
+            timeframe="1d",
+        )
+
+        assert "rsi" in grids
+        assert "custom" in grids
+        assert "rsi_midrange" in grids
+        assert grids["rsi_midrange"]["_price_column"] == ["midrange"]
+        assert "custom_midrange" in grids
+        assert "cdldoji" not in grids
+        assert "min" not in grids
+
+    def test_generate_liq_ta_param_grids_can_include_patterns_and_handle_import_error(
+        self, monkeypatch
+    ) -> None:
+        dynamic = [
+            {"name": "cdldoji", "group": "Pattern Recognition", "inputs": [], "parameters": {}},
+        ]
+        monkeypatch.setattr(
+            "liq.features.indicators.liq_ta.list_dynamic_indicators", lambda: dynamic
+        )
+        assert "cdldoji" in generate_liq_ta_param_grids(include_patterns=True)
+
+        assert generate_liq_ta_param_grids(include_patterns=True) == {"cdldoji": {}}
+
+    def test_get_single_price_indicators_returns_real_and_price_inputs(self, monkeypatch) -> None:
+        monkeypatch.setattr(
+            "liq.features.indicators.liq_ta.list_dynamic_indicators",
+            lambda: [
+                {"name": "rsi", "inputs": ["real"]},
+                {"name": "atr", "inputs": ["high", "low", "close"]},
+                {"name": "mom", "inputs": ["price"]},
+            ],
+        )
+        assert get_single_price_indicators() == ["rsi", "mom"]

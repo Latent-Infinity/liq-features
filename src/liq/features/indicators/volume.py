@@ -51,17 +51,28 @@ class AbnormalTurnover(BaseIndicator):
 
         window = self._params["window"]
 
-        result = df.select([
-            pl.col("ts"),
-            pl.col("volume"),
-        ]).with_columns([
-            pl.col("volume").rolling_mean(window_size=window).alias("rolling_mean"),
-            pl.col("volume").rolling_std(window_size=window).alias("rolling_std"),
-        ]).with_columns([
-            (
-                (pl.col("volume") - pl.col("rolling_mean")) / pl.col("rolling_std")
-            ).alias("value"),
-        ]).select(["ts", "value"])
+        result = (
+            df.select(
+                [
+                    pl.col("ts"),
+                    pl.col("volume"),
+                ]
+            )
+            .with_columns(
+                [
+                    pl.col("volume").rolling_mean(window_size=window).alias("rolling_mean"),
+                    pl.col("volume").rolling_std(window_size=window).alias("rolling_std"),
+                ]
+            )
+            .with_columns(
+                [
+                    ((pl.col("volume") - pl.col("rolling_mean")) / pl.col("rolling_std")).alias(
+                        "value"
+                    ),
+                ]
+            )
+            .select(["ts", "value"])
+        )
 
         return result.filter(pl.col("value").is_not_nan())
 
@@ -99,13 +110,24 @@ class NormalizedVolume(BaseIndicator):
 
         window = self._params["window"]
 
-        result = df.select([
-            pl.col("ts"),
-            pl.col("volume"),
-        ]).with_columns([
-            pl.col("volume").rolling_mean(window_size=window).alias("rolling_mean"),
-        ]).with_columns([
-            (pl.col("volume") / pl.col("rolling_mean")).alias("value"),
-        ]).select(["ts", "value"])
+        result = (
+            df.select(
+                [
+                    pl.col("ts"),
+                    pl.col("volume"),
+                ]
+            )
+            .with_columns(
+                [
+                    pl.col("volume").rolling_mean(window_size=window).alias("rolling_mean"),
+                ]
+            )
+            .with_columns(
+                [
+                    (pl.col("volume") / pl.col("rolling_mean")).alias("value"),
+                ]
+            )
+            .select(["ts", "value"])
+        )
 
         return result.filter(pl.col("value").is_not_nan())

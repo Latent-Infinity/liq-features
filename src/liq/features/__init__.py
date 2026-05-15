@@ -76,7 +76,6 @@ from liq.features.quantization import (
 # Selection utilities (sklearn/scipy wrappers)
 from liq.features.store import FeatureStore
 
-
 _SELECTION_IMPORT_ERROR: Exception | None = None
 
 try:
@@ -84,17 +83,18 @@ try:
 except Exception as exc:  # pragma: no cover - exercised through import-path failures
     _SELECTION_IMPORT_ERROR = exc
 
-    def mrmr_select(*_args, **_kwargs):  # type: ignore[empty-body]
+    def mrmr_select(*_args, **_kwargs):
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
 
-    def mutual_info_scores(*_args, **_kwargs):  # type: ignore[empty-body]
+    def mutual_info_scores(*_args, **_kwargs):
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
 
-    def spearman_matrix(*_args, **_kwargs):  # type: ignore[empty-body]
+    def spearman_matrix(*_args, **_kwargs):
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
+
 
 __all__ = [
     # Cache management

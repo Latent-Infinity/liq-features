@@ -8,13 +8,15 @@ from liq.features.forex import build_features
 def _sample_df(rows: int, with_volume: bool = True) -> pl.DataFrame:
     ts0 = datetime(2024, 1, 1, tzinfo=UTC)
     base = [1.1000 + i * 0.0001 for i in range(rows)]
-    df = pl.DataFrame({
-        "timestamp": [ts0 + timedelta(hours=i) for i in range(rows)],
-        "open": base,
-        "high": [v + 0.0002 for v in base],
-        "low": [v - 0.0002 for v in base],
-        "close": [v + 0.00005 for v in base],
-    })
+    df = pl.DataFrame(
+        {
+            "timestamp": [ts0 + timedelta(hours=i) for i in range(rows)],
+            "open": base,
+            "high": [v + 0.0002 for v in base],
+            "low": [v - 0.0002 for v in base],
+            "close": [v + 0.00005 for v in base],
+        }
+    )
     if with_volume:
         df = df.with_columns(pl.Series("volume", [1000 + i for i in range(rows)]))
     return df

@@ -91,10 +91,12 @@ def mutual_info_scores(
         mi_scores = mi_scores / mi_scores.max()
 
     # Create result DataFrame
-    result = pl.DataFrame({
-        "feature": feature_names,
-        "mi_score": mi_scores,
-    }).sort("mi_score", descending=True)
+    result = pl.DataFrame(
+        {
+            "feature": feature_names,
+            "mi_score": mi_scores,
+        }
+    ).sort("mi_score", descending=True)
 
     return result
 
@@ -157,10 +159,7 @@ def _compute_mi_single_feature_from_array(
     x_col = X_np[:, col_idx]
 
     # Create mask for valid rows (non-NaN, non-inf in both feature and target)
-    mask = (
-        ~np.isnan(x_col) & ~np.isnan(y_np) &
-        ~np.isinf(x_col) & ~np.isinf(y_np)
-    )
+    mask = ~np.isnan(x_col) & ~np.isnan(y_np) & ~np.isinf(x_col) & ~np.isinf(y_np)
     x_valid = x_col[mask].copy()  # Copy needed for jitter
     y_valid = y_np[mask]
 
@@ -288,20 +287,18 @@ def mutual_info_scores_per_feature(
             delayed(_safe_compute)(col_idx, col_name)
             for col_idx, col_name in enumerate(feature_names)
         )
-        for result in generator:
+        for completed, result in enumerate(generator, start=1):
             results.append(result)
-            completed += 1
             if progress_callback and completed % 100 == 0:
                 progress_callback(completed, n_features)
 
     result = pl.DataFrame(results)
 
     if normalize:
-        max_score = result["mi_score"].max()
-        if max_score is not None and max_score > 0:
-            result = result.with_columns(
-                (pl.col("mi_score") / max_score).alias("mi_score")
-            )
+        max_score_raw = result["mi_score"].max()
+        max_score = float(max_score_raw) if isinstance(max_score_raw, int | float) else 0.0
+        if max_score > 0:
+            result = result.with_columns((pl.col("mi_score") / max_score).alias("mi_score"))
 
     return result.sort("mi_score", descending=True, nulls_last=True)
 
@@ -356,9 +353,13 @@ def mutual_info_matrix(
     mi_matrix = (mi_matrix + mi_matrix.T) / 2
 
     # Create DataFrame
-    result = pl.DataFrame(
-        mi_matrix,
-        schema=list(feature_names),
-    ).with_columns(pl.Series("feature", feature_names)).select(["feature", *feature_names])
+    result = (
+        pl.DataFrame(
+            mi_matrix,
+            schema=list(feature_names),
+        )
+        .with_columns(pl.Series("feature", feature_names))
+        .select(["feature", *feature_names])
+    )
 
     return result

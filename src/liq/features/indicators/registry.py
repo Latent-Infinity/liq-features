@@ -17,8 +17,8 @@ Example:
     >>> available = list_indicators()
 """
 
-from collections.abc import Iterable, Mapping
 import math
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from liq.features.indicators.base import BaseIndicator
@@ -108,9 +108,7 @@ def get_indicator(name: str) -> type[BaseIndicator]:
     # List available indicators in error message
     available = list(_HARDCODED_INDICATORS.keys())[:10]
     raise ValueError(
-        f"Unknown indicator: {name}. "
-        f"Available: {available}... "
-        f"Use list_indicators() for full list."
+        f"Unknown indicator: {name}. Available: {available}... Use list_indicators() for full list."
     )
 
 
@@ -165,10 +163,13 @@ def _build_metadata_parameter_specs(
     default_params: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
     """Build stable parameter metadata entries."""
+    get_param_grid: Callable[[str], dict[str, list[Any]]] | None
     try:
-        from liq.features.indicators.param_grids import get_param_grid
+        from liq.features.indicators.param_grids import get_param_grid as _get_param_grid
     except Exception:
         get_param_grid = None
+    else:
+        get_param_grid = _get_param_grid
 
     allowed_grid = {}
     if get_param_grid is not None:
@@ -179,12 +180,17 @@ def _build_metadata_parameter_specs(
 
     parameters: list[dict[str, Any]] = []
     for param_name, default_value in default_params.items():
-        allowed = _sorted_discrete_values(allowed_grid.get(param_name, None)) or []
-        if default_value not in allowed and allowed and isinstance(default_value, (int, float)) and not isinstance(default_value, bool):
+        allowed = _sorted_discrete_values(allowed_grid.get(param_name)) or []
+        if (
+            default_value not in allowed
+            and allowed
+            and isinstance(default_value, (int, float))
+            and not isinstance(default_value, bool)
+        ):
             if isinstance(default_value, float):
-                allowed = sorted(set([*allowed, float(default_value)]))
+                allowed = sorted({*allowed, float(default_value)})
             else:
-                allowed = sorted(set([*allowed, int(default_value)]))
+                allowed = sorted({*allowed, int(default_value)})
 
         dtype_name = type(default_value).__name__
         if isinstance(default_value, bool):

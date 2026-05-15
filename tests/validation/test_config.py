@@ -22,10 +22,12 @@ def sample_data() -> tuple[pl.DataFrame, pl.Series]:
     rng = np.random.default_rng(42)
     n = 100
 
-    X = pl.DataFrame({
-        "feature_a": rng.normal(0, 1, n),
-        "feature_b": rng.normal(0, 1, n),
-    })
+    X = pl.DataFrame(
+        {
+            "feature_a": rng.normal(0, 1, n),
+            "feature_b": rng.normal(0, 1, n),
+        }
+    )
     y = pl.Series("target", rng.normal(0, 1, n))
 
     return X, y
@@ -34,9 +36,7 @@ def sample_data() -> tuple[pl.DataFrame, pl.Series]:
 class TestSensitivityConfigValidation:
     """Tests for sensitivity analysis configuration validation."""
 
-    def test_negative_k_value_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_negative_k_value_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject negative k values."""
         from liq.features.validation import mi_sensitivity_analysis
 
@@ -48,9 +48,7 @@ class TestSensitivityConfigValidation:
         assert "k" in str(exc_info.value).lower()
         assert exc_info.value.parameter == "k_neighbors"
 
-    def test_zero_k_value_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_zero_k_value_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject zero k value."""
         from liq.features.validation import mi_sensitivity_analysis
 
@@ -72,9 +70,7 @@ class TestSensitivityConfigValidation:
         with pytest.raises(ConfigurationError):
             mi_sensitivity_analysis(X, y, "feature_a", k_values=[3, -1, 5])
 
-    def test_feature_not_found_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_feature_not_found_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should raise if feature not in DataFrame."""
         from liq.features.validation import mi_sensitivity_analysis
 
@@ -89,9 +85,7 @@ class TestSensitivityConfigValidation:
 class TestOOSConfigValidation:
     """Tests for OOS validation configuration validation."""
 
-    def test_test_ratio_zero_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_test_ratio_zero_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject test_ratio of 0."""
         from liq.features.validation import validate_oos
 
@@ -103,9 +97,7 @@ class TestOOSConfigValidation:
         assert exc_info.value.parameter == "test_ratio"
         assert "0 < test_ratio < 1" in exc_info.value.valid_range
 
-    def test_test_ratio_one_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_test_ratio_one_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject test_ratio of 1."""
         from liq.features.validation import validate_oos
 
@@ -116,9 +108,7 @@ class TestOOSConfigValidation:
 
         assert exc_info.value.value == 1
 
-    def test_test_ratio_negative_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_test_ratio_negative_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject negative test_ratio."""
         from liq.features.validation import validate_oos
 
@@ -157,9 +147,7 @@ class TestOOSConfigValidation:
 class TestTemporalConfigValidation:
     """Tests for temporal analysis configuration validation."""
 
-    def test_negative_window_size_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_negative_window_size_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject negative window_size."""
         from liq.features.validation import rolling_mi_analysis
 
@@ -167,15 +155,16 @@ class TestTemporalConfigValidation:
 
         with pytest.raises(ConfigurationError) as exc_info:
             rolling_mi_analysis(
-                X, y, features=["feature_a"],
-                window_size=-10, step_size=5,
+                X,
+                y,
+                features=["feature_a"],
+                window_size=-10,
+                step_size=5,
             )
 
         assert exc_info.value.parameter == "window_size"
 
-    def test_zero_window_size_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_zero_window_size_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject zero window_size."""
         from liq.features.validation import rolling_mi_analysis
 
@@ -183,15 +172,16 @@ class TestTemporalConfigValidation:
 
         with pytest.raises(ConfigurationError) as exc_info:
             rolling_mi_analysis(
-                X, y, features=["feature_a"],
-                window_size=0, step_size=5,
+                X,
+                y,
+                features=["feature_a"],
+                window_size=0,
+                step_size=5,
             )
 
         assert exc_info.value.value == 0
 
-    def test_negative_step_size_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_negative_step_size_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject negative step_size."""
         from liq.features.validation import rolling_mi_analysis
 
@@ -199,15 +189,16 @@ class TestTemporalConfigValidation:
 
         with pytest.raises(ConfigurationError) as exc_info:
             rolling_mi_analysis(
-                X, y, features=["feature_a"],
-                window_size=30, step_size=-5,
+                X,
+                y,
+                features=["feature_a"],
+                window_size=30,
+                step_size=-5,
             )
 
         assert exc_info.value.parameter == "step_size"
 
-    def test_zero_step_size_raises(
-        self, sample_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_zero_step_size_raises(self, sample_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should reject zero step_size."""
         from liq.features.validation import rolling_mi_analysis
 
@@ -215,8 +206,11 @@ class TestTemporalConfigValidation:
 
         with pytest.raises(ConfigurationError) as exc_info:
             rolling_mi_analysis(
-                X, y, features=["feature_a"],
-                window_size=30, step_size=0,
+                X,
+                y,
+                features=["feature_a"],
+                window_size=30,
+                step_size=0,
             )
 
         assert exc_info.value.value == 0
@@ -231,8 +225,11 @@ class TestTemporalConfigValidation:
 
         with pytest.raises(InsufficientDataError) as exc_info:
             rolling_mi_analysis(
-                X, y, features=["feature_a"],
-                window_size=5, step_size=2,  # Too small
+                X,
+                y,
+                features=["feature_a"],
+                window_size=5,
+                step_size=2,  # Too small
             )
 
         # Minimum is 20 samples per window
@@ -248,8 +245,11 @@ class TestTemporalConfigValidation:
 
         with pytest.raises(InsufficientDataError):
             rolling_mi_analysis(
-                X, y, features=["feature_a"],
-                window_size=1000, step_size=100,  # Exceeds data
+                X,
+                y,
+                features=["feature_a"],
+                window_size=1000,
+                step_size=100,  # Exceeds data
             )
 
 

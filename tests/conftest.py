@@ -9,20 +9,22 @@ import pytest
 @pytest.fixture
 def sample_ohlc_df() -> pl.DataFrame:
     """Create a sample OHLC DataFrame for testing."""
-    return pl.DataFrame({
-        "ts": [
-            datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
-            datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC),
-            datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC),
-            datetime(2024, 1, 15, 13, 0, 0, tzinfo=UTC),
-            datetime(2024, 1, 15, 14, 0, 0, tzinfo=UTC),
-        ],
-        "open": [100.0, 102.0, 101.0, 103.0, 102.0],
-        "high": [103.0, 104.0, 103.0, 105.0, 104.0],
-        "low": [99.0, 101.0, 100.0, 102.0, 101.0],
-        "close": [102.0, 101.0, 103.0, 102.0, 103.0],
-        "volume": [1000.0, 1500.0, 1200.0, 1800.0, 1400.0],
-    })
+    return pl.DataFrame(
+        {
+            "ts": [
+                datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
+                datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC),
+                datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC),
+                datetime(2024, 1, 15, 13, 0, 0, tzinfo=UTC),
+                datetime(2024, 1, 15, 14, 0, 0, tzinfo=UTC),
+            ],
+            "open": [100.0, 102.0, 101.0, 103.0, 102.0],
+            "high": [103.0, 104.0, 103.0, 105.0, 104.0],
+            "low": [99.0, 101.0, 100.0, 102.0, 101.0],
+            "close": [102.0, 101.0, 103.0, 102.0, 103.0],
+            "volume": [1000.0, 1500.0, 1200.0, 1800.0, 1400.0],
+        }
+    )
 
 
 @pytest.fixture
@@ -33,9 +35,7 @@ def sample_ohlc_df_large() -> pl.DataFrame:
     n_rows = 100
     base_price = 100.0
 
-    timestamps = [
-        datetime(2024, 1, 1, i // 24, i % 24, 0, tzinfo=UTC) for i in range(n_rows)
-    ]
+    timestamps = [datetime(2024, 1, 1, i // 24, i % 24, 0, tzinfo=UTC) for i in range(n_rows)]
 
     # Generate price series with some trend and noise
     opens = []
@@ -62,22 +62,22 @@ def sample_ohlc_df_large() -> pl.DataFrame:
 
         price = close_price
 
-    return pl.DataFrame({
-        "ts": timestamps,
-        "open": opens,
-        "high": highs,
-        "low": lows,
-        "close": closes,
-        "volume": volumes,
-    })
+    return pl.DataFrame(
+        {
+            "ts": timestamps,
+            "open": opens,
+            "high": highs,
+            "low": lows,
+            "close": closes,
+            "volume": volumes,
+        }
+    )
 
 
 @pytest.fixture
 def sample_minute_df() -> pl.DataFrame:
     """Create sample minute-level data for aggregation testing."""
-    timestamps = [
-        datetime(2024, 1, 15, 10, i, 0, tzinfo=UTC) for i in range(60)
-    ]
+    timestamps = [datetime(2024, 1, 15, 10, i, 0, tzinfo=UTC) for i in range(60)]
 
     base_price = 100.0
     opens = []
@@ -102,11 +102,13 @@ def sample_minute_df() -> pl.DataFrame:
 
         price = close_price
 
-    return pl.DataFrame({
-        "timestamp": timestamps,
-        "open": opens,
-        "high": highs,
-        "low": lows,
-        "close": closes,
-        "volume": volumes,
-    })
+    return pl.DataFrame(
+        {
+            "timestamp": timestamps,
+            "open": opens,
+            "high": highs,
+            "low": lows,
+            "close": closes,
+            "volume": volumes,
+        }
+    )

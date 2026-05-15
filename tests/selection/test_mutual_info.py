@@ -4,7 +4,12 @@ import numpy as np
 import polars as pl
 import pytest
 
-from liq.features.selection.mutual_info import mutual_info_matrix, mutual_info_scores
+from liq.features.selection.mutual_info import (
+    _add_jitter,
+    mutual_info_matrix,
+    mutual_info_scores,
+    mutual_info_scores_per_feature,
+)
 
 
 class TestMutualInfoScores:
@@ -41,11 +46,13 @@ class TestMutualInfoScores:
         np.random.seed(42)
         n = 500
 
-        features = pl.DataFrame({
-            "low": np.random.randn(n),
-            "medium": np.random.randn(n),
-            "high": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "low": np.random.randn(n),
+                "medium": np.random.randn(n),
+                "high": np.random.randn(n),
+            }
+        )
 
         # Target correlated with 'high'
         target = pl.Series("y", features["high"].to_numpy() + 0.1 * np.random.randn(n))
@@ -170,10 +177,12 @@ class TestMutualInfoMatrix:
         np.random.seed(42)
         n = 200
 
-        features = pl.DataFrame({
-            "a": np.random.randn(n),
-            "b": np.random.randn(n),
-        })
+        features = pl.DataFrame(
+            {
+                "a": np.random.randn(n),
+                "b": np.random.randn(n),
+            }
+        )
 
         result = mutual_info_matrix(features, random_state=42)
 
@@ -181,3 +190,77 @@ class TestMutualInfoMatrix:
         a_b = result.filter(pl.col("feature") == "a")["b"].item()
         b_a = result.filter(pl.col("feature") == "b")["a"].item()
         assert a_b == pytest.approx(b_a, rel=0.01)
+
+
+class TestMutualInfoPerFeature:
+    """Tests for per-feature MI with independent validity masks."""
+
+    def test_per_feature_scores_handle_warmup_nans_and_progress(self) -> None:
+        rng = np.random.default_rng(42)
+        n = 120
+        x1 = rng.normal(size=n)
+        x2 = rng.normal(size=n)
+        x2[:20] = np.nan
+        y = x1 + rng.normal(scale=0.05, size=n)
+        progress: list[tuple[int, int]] = []
+
+        result = mutual_info_scores_per_feature(
+            pl.DataFrame({"x1": x1, "x2": x2}),
+            pl.Series("y", y),
+            min_samples=30,
+            n_jobs=1,
+            normalize=True,
+            progress_callback=lambda current, total: progress.append((current, total)),
+        )
+
+        assert result.columns == ["feature", "mi_score", "n_samples"]
+        assert result.filter(pl.col("feature") == "x1")["n_samples"].item() == n
+        assert result.filter(pl.col("feature") == "x2")["n_samples"].item() == n - 20
+        assert result["mi_score"].max() == pytest.approx(1.0)
+        assert progress[-1] == (2, 2)
+
+    def test_per_feature_scores_mark_small_samples_as_null_sorted_last(self) -> None:
+        result = mutual_info_scores_per_feature(
+            pl.DataFrame({"few": [1.0, np.nan, np.nan], "ok": [1.0, 2.0, 3.0]}),
+            pl.Series("y", [1.0, 2.0, 3.0]),
+            min_samples=3,
+            n_jobs=1,
+        )
+
+        assert np.isnan(result.filter(pl.col("feature") == "few")["mi_score"].item())
+        assert result.filter(pl.col("feature") == "few")["n_samples"].item() == 1
+        assert set(result["feature"].to_list()) == {"few", "ok"}
+
+    def test_per_feature_parallel_path_reports_results(self) -> None:
+        rng = np.random.default_rng(7)
+        n = 80
+        data = {f"x{i}": rng.normal(size=n) for i in range(10)}
+        target = pl.Series("y", data["x0"] + rng.normal(scale=0.1, size=n))
+
+        result = mutual_info_scores_per_feature(
+            pl.DataFrame(data), target, min_samples=20, n_jobs=2
+        )
+
+        assert result.height == 10
+        assert set(result.columns) == {"feature", "mi_score", "n_samples"}
+
+    def test_add_jitter_changes_tied_values_deterministically(self) -> None:
+        values = np.array([5.0, 5.0, 5.0])
+        first = _add_jitter(values, np.random.default_rng(1))
+        second = _add_jitter(values, np.random.default_rng(1))
+
+        assert first.tolist() == second.tolist()
+        assert first.tolist() != values.tolist()
+
+    def test_mutual_info_scores_without_dropping_nan_raises_from_sklearn(self) -> None:
+        features = pl.DataFrame({"x": [1.0, np.nan, 3.0]})
+        target = pl.Series("y", [1.0, 2.0, 3.0])
+
+        with pytest.raises(ValueError):
+            mutual_info_scores(features, target, drop_na=False)
+
+    def test_mutual_info_matrix_raises_when_all_rows_drop(self) -> None:
+        features = pl.DataFrame({"x": [np.nan, np.nan], "y": [np.nan, np.nan]})
+
+        with pytest.raises(ValueError, match="No valid samples"):
+            mutual_info_matrix(features)

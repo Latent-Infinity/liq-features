@@ -35,10 +35,12 @@ class TestRollingMIAnalysis:
         x2 = rng.normal(0, 1, n)
         y = 0.7 * x1 + 0.3 * x2 + rng.normal(0, 0.2, n)
 
-        df = pl.DataFrame({
-            "feature_1": x1,
-            "feature_2": x2,
-        })
+        df = pl.DataFrame(
+            {
+                "feature_1": x1,
+                "feature_2": x2,
+            }
+        )
         target = pl.Series("target", y)
 
         return df, target
@@ -60,10 +62,12 @@ class TestRollingMIAnalysis:
         x2_second = rng.normal(0, 1, half)
         y_second = 0.8 * x2_second + rng.normal(0, 0.2, half)
 
-        df = pl.DataFrame({
-            "feature_1": np.concatenate([x1_first, x1_second]),
-            "feature_2": np.concatenate([x2_first, x2_second]),
-        })
+        df = pl.DataFrame(
+            {
+                "feature_1": np.concatenate([x1_first, x1_second]),
+                "feature_2": np.concatenate([x2_first, x2_second]),
+            }
+        )
         target = pl.Series("target", np.concatenate([y_first, y_second]))
 
         return df, target
@@ -80,15 +84,11 @@ class TestRollingMIAnalysis:
 
         assert isinstance(result, TemporalStabilityResult)
 
-    def test_correct_number_of_windows(
-        self, stable_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_correct_number_of_windows(self, stable_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should compute correct number of windows."""
         X, y = stable_data
 
-        result = rolling_mi_analysis(
-            X, y, window_size=500, step_size=250
-        )
+        result = rolling_mi_analysis(X, y, window_size=500, step_size=250)
 
         # With n=2000, window=500, step=250:
         # Windows start at 0, 250, 500, 750, 1000, 1250, 1500 (last valid end: 2000)
@@ -97,16 +97,12 @@ class TestRollingMIAnalysis:
         expected_windows = (2000 - 500) // 250 + 1  # = 7
         assert result.n_windows == expected_windows
 
-    def test_mi_computed_for_each_window(
-        self, stable_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_mi_computed_for_each_window(self, stable_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should compute MI for each feature in each window."""
         X, y = stable_data
         features = ["feature_1", "feature_2"]
 
-        result = rolling_mi_analysis(
-            X, y, features=features, window_size=500, step_size=250
-        )
+        result = rolling_mi_analysis(X, y, features=features, window_size=500, step_size=250)
 
         assert len(result.mi_by_window) == result.n_windows
         for mi_dict in result.mi_by_window:
@@ -119,9 +115,7 @@ class TestRollingMIAnalysis:
         X, y = stable_data
         features = ["feature_1", "feature_2"]
 
-        result = rolling_mi_analysis(
-            X, y, features=features, window_size=500, step_size=250
-        )
+        result = rolling_mi_analysis(X, y, features=features, window_size=500, step_size=250)
 
         assert len(result.rank_by_window) == result.n_windows
         for rank_dict in result.rank_by_window:
@@ -149,9 +143,7 @@ class TestRollingMIAnalysis:
         # Mean correlation should be high for stable data
         assert result.mean_correlation > 0.5
 
-    def test_is_stable_for_stable_data(
-        self, stable_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_is_stable_for_stable_data(self, stable_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """is_stable should be True for stable data."""
         X, y = stable_data
 
@@ -166,16 +158,12 @@ class TestRollingMIAnalysis:
         """Should detect regime changes."""
         X, y = regime_change_data
 
-        result = rolling_mi_analysis(
-            X, y, window_size=400, step_size=200, regime_threshold=0.3
-        )
+        result = rolling_mi_analysis(X, y, window_size=400, step_size=200, regime_threshold=0.3)
 
         # Should detect at least one regime change
         assert result.n_regime_changes >= 0  # May or may not detect depending on params
 
-    def test_min_correlation_tracked(
-        self, stable_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_min_correlation_tracked(self, stable_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should track minimum correlation."""
         X, y = stable_data
 
@@ -183,9 +171,7 @@ class TestRollingMIAnalysis:
 
         assert result.min_correlation <= result.mean_correlation
 
-    def test_window_starts_recorded(
-        self, stable_data: tuple[pl.DataFrame, pl.Series]
-    ) -> None:
+    def test_window_starts_recorded(self, stable_data: tuple[pl.DataFrame, pl.Series]) -> None:
         """Should record window start indices."""
         X, y = stable_data
 
@@ -203,12 +189,8 @@ class TestRollingMIAnalysis:
         """Results should be reproducible."""
         X, y = stable_data
 
-        result1 = rolling_mi_analysis(
-            X, y, window_size=500, step_size=250, random_state=42
-        )
-        result2 = rolling_mi_analysis(
-            X, y, window_size=500, step_size=250, random_state=42
-        )
+        result1 = rolling_mi_analysis(X, y, window_size=500, step_size=250, random_state=42)
+        result2 = rolling_mi_analysis(X, y, window_size=500, step_size=250, random_state=42)
 
         assert result1.mi_by_window == result2.mi_by_window
 

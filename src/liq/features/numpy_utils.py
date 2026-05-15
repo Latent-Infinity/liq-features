@@ -6,6 +6,8 @@ when required by downstream libraries (liq-ta, scikit-learn, etc.).
 
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 import polars as pl
 
@@ -14,7 +16,7 @@ def to_numpy_float64(
     data: pl.DataFrame | pl.Series,
     *,
     allow_copy: bool = False,
-    order: str = "fortran",
+    order: Literal["c", "fortran"] = "fortran",
 ) -> np.ndarray:
     """Convert Polars data to a float64 numpy array with minimal copying."""
     if isinstance(data, pl.Series):

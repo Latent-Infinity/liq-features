@@ -22,14 +22,36 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+SYMBOL_OPTION = typer.Option(..., "--symbol", "-s", help="Trading symbol")
+TIMEFRAME_OPTION = typer.Option(..., "--timeframe", "-t", help="Bar timeframe")
+STORE_ROOT_OPTION = typer.Option(..., "--store-root", help="Feature cache root")
+FEATURE_NAME_OPTION = typer.Option(..., "--feature-name", help="Feature name to compute")
+CACHE_DIR_DEFAULT_OPTION = typer.Option(None, "--cache-dir", "-d", help="Cache directory")
+CACHE_DIR_ENV_OPTION = typer.Option(
+    None, "--cache-dir", "-d", help="Cache directory (default: from env)"
+)
+CACHE_DIR_LEGACY_OPTION = typer.Option(None, "--cache-dir", help="Cache directory")
+SYMBOL_FILTER_OPTION = typer.Option(None, "--symbol", "-s", help="Filter by symbol")
+INDICATOR_FILTER_OPTION = typer.Option(
+    None, "--indicator", "-i", help="Filter by indicator (supports wildcards)"
+)
+TIMEFRAME_FILTER_OPTION = typer.Option(None, "--timeframe", "-t", help="Filter by timeframe")
+LIMIT_OPTION = typer.Option(None, "--limit", "-n", help="Limit results")
+DATA_HASH_OPTION = typer.Option(None, "--data-hash", help="Filter by data hash")
+OLDER_THAN_OPTION = typer.Option(None, "--older-than", help="Filter by age (e.g., '7d', '24h')")
+ALL_ENTRIES_OPTION = typer.Option(False, "--all", help="Clean all entries (required if no filters)")
+DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Preview without deleting")
+FORCE_OPTION = typer.Option(False, "--force", "-f", help="Skip confirmation prompt")
+CLEAR_OPTION = typer.Option(False, "--clear", help="Clear all cache entries")
+
 
 @app.command("compute")
 def compute_feature(
     input_path: Path,
-    symbol: str = typer.Option(..., "--symbol", "-s", help="Trading symbol"),
-    timeframe: str = typer.Option(..., "--timeframe", "-t", help="Bar timeframe"),
-    store_root: Path = typer.Option(..., "--store-root", help="Feature cache root"),
-    feature_name: str = typer.Option(..., "--feature-name", help="Feature name to compute"),
+    symbol: str = SYMBOL_OPTION,
+    timeframe: str = TIMEFRAME_OPTION,
+    store_root: Path = STORE_ROOT_OPTION,
+    feature_name: str = FEATURE_NAME_OPTION,
 ) -> None:
     """Compute a feature from historical bars and write it to cache."""
     import hashlib
@@ -37,7 +59,6 @@ def compute_feature(
     import polars as pl
 
     from liq.features.derived import compute_derived_fields
-    from liq.features.store import FeatureStore
     from liq.store import key_builder
     from liq.store.parquet import ParquetStore
 
@@ -54,10 +75,12 @@ def compute_feature(
 
     derived = compute_derived_fields(bars)
 
-    feature_df = derived.select([
-        pl.col("timestamp") if "timestamp" in derived.columns else pl.col("ts"),
-        pl.col("midrange").alias(feature_name),
-    ])
+    feature_df = derived.select(
+        [
+            pl.col("timestamp") if "timestamp" in derived.columns else pl.col("ts"),
+            pl.col("midrange").alias(feature_name),
+        ]
+    )
 
     # Keep existing behavior stable for tests: deterministic key based on feature name.
     feature_key = key_builder.features(
@@ -68,6 +91,7 @@ def compute_feature(
     store = ParquetStore(str(store_root))
     # Persist in one file for the computed feature.
     store.write(feature_key, feature_df, mode="overwrite")
+
 
 cache_app = typer.Typer(
     name="cache",
@@ -104,9 +128,7 @@ def _format_bytes(size_bytes: int) -> str:
 
 @cache_app.command("stats")
 def cache_stats(
-    cache_dir: Path | None = typer.Option(
-        None, "--cache-dir", "-d", help="Cache directory (default: from env)"
-    ),
+    cache_dir: Path | None = CACHE_DIR_ENV_OPTION,
 ) -> None:
     """Show cache statistics."""
     cache = _get_cache(cache_dir)
@@ -127,17 +149,11 @@ def cache_stats(
 
 @cache_app.command("list")
 def cache_list(
-    cache_dir: Path | None = typer.Option(
-        None, "--cache-dir", "-d", help="Cache directory"
-    ),
-    symbol: str | None = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
-    indicator: str | None = typer.Option(
-        None, "--indicator", "-i", help="Filter by indicator (supports wildcards)"
-    ),
-    timeframe: str | None = typer.Option(
-        None, "--timeframe", "-t", help="Filter by timeframe"
-    ),
-    limit: int | None = typer.Option(None, "--limit", "-n", help="Limit results"),
+    cache_dir: Path | None = CACHE_DIR_DEFAULT_OPTION,
+    symbol: str | None = SYMBOL_FILTER_OPTION,
+    indicator: str | None = INDICATOR_FILTER_OPTION,
+    timeframe: str | None = TIMEFRAME_FILTER_OPTION,
+    limit: int | None = LIMIT_OPTION,
 ) -> None:
     """List cached indicator entries."""
     from liq.features.cache_models import CacheFilter
@@ -150,7 +166,11 @@ def cache_list(
         limit=limit,
     )
 
-    entries = cache.list_entries(filters if filters.symbol or filters.indicator or filters.timeframe or filters.limit else None)
+    entries = cache.list_entries(
+        filters
+        if filters.symbol or filters.indicator or filters.timeframe or filters.limit
+        else None
+    )
 
     if not entries:
         console.print("[yellow]No cache entries found.[/yellow]")
@@ -177,31 +197,15 @@ def cache_list(
 
 @cache_app.command("clean")
 def cache_clean(
-    cache_dir: Path | None = typer.Option(
-        None, "--cache-dir", "-d", help="Cache directory"
-    ),
-    symbol: str | None = typer.Option(None, "--symbol", "-s", help="Filter by symbol"),
-    indicator: str | None = typer.Option(
-        None, "--indicator", "-i", help="Filter by indicator (supports wildcards)"
-    ),
-    timeframe: str | None = typer.Option(
-        None, "--timeframe", "-t", help="Filter by timeframe"
-    ),
-    data_hash: str | None = typer.Option(
-        None, "--data-hash", help="Filter by data hash"
-    ),
-    older_than: str | None = typer.Option(
-        None, "--older-than", help="Filter by age (e.g., '7d', '24h')"
-    ),
-    all_entries: bool = typer.Option(
-        False, "--all", help="Clean all entries (required if no filters)"
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Preview without deleting"
-    ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Skip confirmation prompt"
-    ),
+    cache_dir: Path | None = CACHE_DIR_DEFAULT_OPTION,
+    symbol: str | None = SYMBOL_FILTER_OPTION,
+    indicator: str | None = INDICATOR_FILTER_OPTION,
+    timeframe: str | None = TIMEFRAME_FILTER_OPTION,
+    data_hash: str | None = DATA_HASH_OPTION,
+    older_than: str | None = OLDER_THAN_OPTION,
+    all_entries: bool = ALL_ENTRIES_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    force: bool = FORCE_OPTION,
 ) -> None:
     """Clean cache entries matching criteria."""
     from liq.features.cache_models import CleanupCriteria
@@ -228,7 +232,9 @@ def cache_clean(
     # Preview what will be deleted
     if dry_run:
         result = cache.clean(criteria, dry_run=True)
-        console.print(f"[yellow]Dry run:[/yellow] Would delete {result.deleted_count} entries ({_format_bytes(result.freed_bytes)})")
+        console.print(
+            f"[yellow]Dry run:[/yellow] Would delete {result.deleted_count} entries ({_format_bytes(result.freed_bytes)})"
+        )
         return
 
     # Get preview for confirmation
@@ -264,9 +270,7 @@ def cache_clean(
 
 @cache_app.command("rebuild-index")
 def cache_rebuild_index(
-    cache_dir: Path | None = typer.Option(
-        None, "--cache-dir", "-d", help="Cache directory"
-    ),
+    cache_dir: Path | None = CACHE_DIR_DEFAULT_OPTION,
 ) -> None:
     """Rebuild cache index from storage keys."""
     cache = _get_cache(cache_dir)
@@ -277,10 +281,8 @@ def cache_rebuild_index(
 # Legacy command for backward compatibility
 @app.command("indicator-cache")
 def indicator_cache_legacy(
-    cache_dir: Path | None = typer.Option(
-        None, "--cache-dir", help="Cache directory"
-    ),
-    clear: bool = typer.Option(False, "--clear", help="Clear all cache entries"),
+    cache_dir: Path | None = CACHE_DIR_LEGACY_OPTION,
+    clear: bool = CLEAR_OPTION,
 ) -> None:
     """Show cache status (legacy command, use 'cache stats' instead)."""
     cache = _get_cache(cache_dir)
