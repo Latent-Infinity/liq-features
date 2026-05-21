@@ -1,8 +1,9 @@
 """Tests for liq.features.regime module."""
 
 import numpy as np
+import polars as pl
 
-from liq.features.regime import hurst_exponent
+from liq.features.regime import SVMRegimeClassifier, hurst_exponent
 
 
 class TestHurstExponent:
@@ -122,3 +123,21 @@ class TestHurstExponent:
         h = hurst_exponent(series)
         assert isinstance(h, float)
         assert 0 <= h <= 1
+
+
+class TestSVMRegimeClassifier:
+    """Tests for deterministic regime classifier behavior."""
+
+    def test_predict_uses_same_scaled_space_as_fit(self) -> None:
+        """Scaled, shifted features keep the fitted labels separable."""
+        features = pl.DataFrame(
+            {
+                "x": [0.0, 1.0, 100.0, 101.0],
+                "y": [0.0, 1.0, 100.0, 101.0],
+            }
+        )
+        labels = pl.Series("cluster_id", [0, 0, 1, 1])
+
+        model = SVMRegimeClassifier(random_state=7, n_regimes=2).fit(features, labels)
+
+        assert model.predict(features).to_list() == [0, 0, 1, 1]
