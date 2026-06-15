@@ -35,7 +35,8 @@ the minute-mode events (RV-noise gate, BPV/JV decomposition).
 | `estimator_fallback_applied` | A fallback was used instead of the requested estimator. Fields: `from`, `to`, `reason`. |
 | `quality_flag_set` | A `quality_flag` was set on a bar. Debounced to one event per bar even when multiple flags fire (avoids duplication with the windowed log path). |
 | `data_quality_rejected` (ERROR) | A bar failed quality with no fallback eligible. Includes the rule that fired. |
-| `rv_noise_gate_fired` | The RV-noise gate (research plan §5.3) rejected `RV_1m` and fell back. |
+| `rv_noise_gate_fired` | The RV-noise gate (research plan §5.3) rejected `RV_1m` and fell back. Payload carries `rv_1m`, `rv_5m`, `rv_15m`, `price_movement`, and the resolved `target` (`rv_5m` / `realized_kernel`). |
+| `quality_flag_derivation` | A §5.4 derived flag (`GAP_DOMINATED_VOL`, `INTRADAY_RANGE_DOMINATED_VOL`, `HIGH_ESTIMATOR_DISAGREEMENT`, `CTC_DISAGREES_WITH_RANGE`) fired. Payload carries the per-estimator inputs and the `estimator_dispersion` value at the time of derivation. |
 | `mcs_eliminated` | The Hansen-Lunde-Nason elimination step removed a candidate. |
 | `tie_break_applied` | The pre-registered `tie_break_order` decided between MCS members. |
 | `ablation_recalibration_proposed` | An ablation produced a `RecalibrationProposal` (research plan §10.2). |

@@ -1,0 +1,61 @@
+RV-noise gate — liq-features changed files
+=====================================
+
+Code added:
+  src/liq/features/volatility/rv.py
+    Replaces the empty foundation skeleton with the minute-mode RV / BPV
+    / JV helpers + the §5.3 RV-noise gate:
+    - compute_rv(returns) = Σ r_i² (sum of squared log-returns)
+    - compute_bpv(returns) = (π/2) · Σ |r_{i-1}| · |r_i| (jump-robust)
+    - compute_jv(returns) = max(RV - BPV, 0) (jump variation, clipped)
+    - rv_noise_gate(rv_by_interval, *, price_movement, ratio_threshold=2.0,
+      unexplained_threshold=0.5): fires when RV_1m ≥ 2 · RV_5m AND
+      RV_1m ≥ 2 · RV_15m AND price_movement² < 0.5 · RV_5m (the
+      directional move doesn't explain the inflated RV_1m).
+
+  src/liq/features/volatility/decomposition.py
+    Replaces the empty foundation skeleton with the §5.4 derivation layer:
+    - estimator_dispersion(estimates) = population std across the
+      estimator outputs.
+    - derive_quality_flags(estimates, *, dispersion_threshold) →
+      tuple[str, ...] applying the §5.4 table:
+      • GAP_DOMINATED_VOL when ctc ≥ 4× parkinson
+      • INTRADAY_RANGE_DOMINATED_VOL when rs ≥ 4× ctc
+      • HIGH_ESTIMATOR_DISAGREEMENT when estimator_dispersion > policy bar
+      • CTC_DISAGREES_WITH_RANGE when |log(ctc / range_mean)| ≥ log(4)
+    Missing keys tolerated — degraded-fallback dicts don't crash.
+
+Tests added:
+  tests/test_volatility_rv.py
+    15 tests: compute_rv zero/sum/empty/unbiased-on-GBM; compute_bpv
+    zero/constant/single-return/approximately-equal-to-RV-under-GBM;
+    compute_jv identity/jump-isolates/non-negative; rv_noise_gate fires
+    on inflated 1m, doesn't fire on matched RVs, doesn't fire when
+    price moved a lot, raises on missing intervals.
+  tests/test_volatility_decomposition.py
+    9 tests pinning estimator_dispersion (zero-when-agree, population
+    std, empty raises) and derive_quality_flags (each §5.4 pattern,
+    no-flags-when-agree, missing keys tolerated).
+
+Docs modified:
+  docs/volatility.md
+    New section "Minute-mode RV / BPV / JV + RV-noise gate" with the
+    function contracts, the §5.3 RV-noise-gate two-clause definition,
+    and a pointer to the eval_simulation_minute acceptance CLI. New
+    section "Estimator dispersion + §5.4 quality flags" with the §5.4
+    derivation table and policy-threshold semantics.
+  docs/logging.md
+    rv_noise_gate_fired event payload documented (rv_1m, rv_5m, rv_15m,
+    price_movement, target). New event quality_flag_derivation for the
+    §5.4-table-driven flags (carries per-estimator inputs and the
+    estimator_dispersion value).
+
+State:
+  AGENT_STATE.md  quality/fallback work → done; RV-noise gate → ready-for-review.
+
+Artifacts:
+  verify output   (ruff format/check + ty all green)
+  test report     (142 tests across the volatility surface)
+  coverage summary (rv.py + decomposition.py coverage)
+  changed-files summary   (this file)
+  decisions summary

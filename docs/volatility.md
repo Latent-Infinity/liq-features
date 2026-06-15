@@ -97,6 +97,71 @@ via `uv run python scripts/smoke_formula_registry.py`; the script
 emits a JSON report to stdout and exits non-zero on any tolerance
 breach.
 
+## Minute-mode RV / BPV / JV + RV-noise gate
+
+Implementations of research plan §5.3 ship in `liq.features.volatility.rv`.
+
+| Function | Purpose | Formula |
+| --- | --- | --- |
+| `compute_rv(returns)` | Realized variance — sum of squared log-returns. | `Σ r_i²` |
+| `compute_bpv(returns)` | Bipower variation — jump-robust continuous-variance proxy. | `(π/2) · Σ_{i≥1} \|r_{i-1}\| · \|r_i\|` |
+| `compute_jv(returns)` | Jump variation. | `max(RV - BPV, 0)` |
+| `rv_noise_gate(rv_by_interval, price_movement)` | §5.3 hard gate. | See below. |
+
+The Barndorff-Nielsen / Shephard decomposition `RV = BPV + JV` holds
+*exactly* whenever `JV > 0`; the `max` clip in `compute_jv` keeps the
+jump component non-negative in finite samples. Tested in
+`tests/test_volatility_rv.py` (per-bar) and
+`liq-experiments/tests/vol/test_bpv_jv_jump_isolation.py`
+(integration — single-jump injection isolates to JV while BPV stays
+near the continuous floor).
+
+### RV-noise gate
+
+The gate fires when both of the following hold:
+
+1. `RV_1m ≥ ratio_threshold · RV_5m` AND `RV_1m ≥ ratio_threshold · RV_15m` —
+   the finer-sampling-inflation pattern (default `ratio_threshold = 2.0`).
+2. `price_movement² < unexplained_threshold · RV_5m` — the directional
+   price movement does not explain the inflated 1m RV (default
+   `unexplained_threshold = 0.5`). `RV_5m` is the low-noise reference for
+   the session's true integrated variance.
+
+When the gate fires, the caller falls back to `RV_5m` (or a realized
+kernel) and adds `NOISY_RV_TARGET` to the bar's quality flags.
+
+A canonical worked example lives in
+`liq-experiments/scripts/eval_simulation_minute.py`; the acceptance
+criterion is
+
+```bash
+uv run python scripts/eval_simulation_minute.py --noise micro --output json \
+    | jq '.gate_fired'
+```
+
+returning `true`. The companion `--noise none` run leaves the gate
+down.
+
+## Estimator dispersion + §5.4 quality flags
+
+The decomposition layer in `liq.features.volatility.decomposition`
+turns a `{estimator_name: variance}` dict into:
+
+- A scalar `estimator_dispersion = stdev_pop(estimates.values())` — the
+  §5.4 "disagreement is information" signal.
+- A tuple of derived quality flags following the §5.4 table:
+
+  | Pattern | Flag |
+  | --- | --- |
+  | Parkinson low + CtC high (`ctc ≥ 4× parkinson`) | `GAP_DOMINATED_VOL` |
+  | RS high + CtC low (`rs ≥ 4× ctc`) | `INTRADAY_RANGE_DOMINATED_VOL` |
+  | `estimator_dispersion > VolQualityPolicy.estimator_dispersion_threshold` | `HIGH_ESTIMATOR_DISAGREEMENT` |
+  | CtC and the range-mean differ by ≥ 4× in either direction | `CTC_DISAGREES_WITH_RANGE` |
+
+Missing estimator keys are tolerated — a degraded-fallback caller may
+pass only `{ctc, parkinson}` without crashing the derivation. The
+patterns are computed independently and may co-occur.
+
 ## Spec is authoritative
 
 Every field that affects the emitted number lives on `VolEstimatorSpec`;
