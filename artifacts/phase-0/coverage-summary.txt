@@ -1,0 +1,9 @@
+Phase 0 has no coverage floor for liq-features (impl plan §3.4).
+
+Verification evidence:
+- `uv run pytest -q` completed successfully.
+- Result: 840 passed, 4 xfailed in 5.34s.
+- The 4 xfails are the strict scaffold contract checks in
+  `tests/test_volatility_contract_xfail.py`; they pin future
+  implementation behavior while `estimate_variance(...)` still raises
+  `NotImplementedError`.

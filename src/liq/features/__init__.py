@@ -107,6 +107,7 @@ except Exception as exc:  # pragma: no cover - exercised through import-path fai
         msg = "Selection utilities require optional dependencies (for example, scikit-learn)."
         raise ImportError(msg) from _SELECTION_IMPORT_ERROR
 
+
 __all__ = [
     # Cache management
     "CacheManager",

@@ -56,6 +56,7 @@ dev = [
     "ruff>=0.14",
     "ty>=0.0.1",
     "pre-commit>=4.0",
+    "liq-validation",
 ]
 
 [project.urls]
@@ -67,6 +68,7 @@ liq-ta = { path = "../liq-ta/crates/liq-ta-python", editable = true }
 liq-core = { path = "../liq-core", editable = true }
 liq-data = { path = "../liq-data", editable = true }
 liq-store = { path = "../liq-store", editable = true }
+liq-validation = { path = "../liq-validation", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/liq"]

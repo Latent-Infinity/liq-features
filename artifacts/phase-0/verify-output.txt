@@ -1,0 +1,8 @@
+123 files already formatted
+---
+All checks passed!
+---
+All checks passed!
+---
+uv run pytest -q
+840 passed, 4 xfailed in 5.34s

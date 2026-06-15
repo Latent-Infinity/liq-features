@@ -1,0 +1,99 @@
+Phase 1H — liq-features changed files
+=====================================
+
+Code added:
+  src/liq/features/volatility/logging.py
+    Structured-log facade. VolEventEmitter binds the §1.9 context
+    (correlation_id, estimator_used, spec_hash, symbol, asof, window),
+    emits four events (estimator_selected, estimator_fallback_applied,
+    quality_flag_set, data_quality_rejected), debounces quality flags
+    per bar, and redacts secret-looking keys (secret / password /
+    token / api_key) to "***". Every structured record includes the
+    required Phase 1H context, including quality_flags.
+  src/liq/features/volatility/quality.py
+    Replaces the empty Phase-0 skeleton with the §9 rules table +
+    PIT-safe outlier detector. QualityVerdict(bar_index, is_hard_error,
+    flags, fallback_eligible, rule). check_bar_quality(bar, past_bars,
+    policy). past_rolling_z(values, min_window) is one-sided by
+    construction. enforce_failure_rate(verdicts, policy) raises
+    VolDataQualityError when the hard-error rate exceeds the Gate-3
+    threshold. Quality flag vocabulary covers §7.4 + data-quality
+    additions (MISSING_OPEN, HIGH_LOW_OUTLIER, ZERO_VOLUME_DAY,
+    DATA_QUALITY_FAILURE, LOW_CONFIDENCE, …).
+  src/liq/features/volatility/estimators/fallback.py
+    select_estimator(requested, verdict, has_prev_close) implements the
+    §4.2 chain in order: hard error → no-emit; H/L suspect → CtC (or
+    no-emit when prev close missing); MISSING_OPEN → Parkinson;
+    requested needs prev close but missing → RS / GK / no-emit;
+    otherwise → emit the requested estimator. FallbackDecision shape
+    feeds the structured-log payload.
+  scripts/smoke_quality_perf.py
+    Non-gating performance smoke: 252-bar × 500-symbol pass through
+    estimate_variance. Records wall-clock and p50/p95/p99/max per-call
+    timing into artifacts/perf.json. Current run: 80 calls/s (~12 ms
+    per call) end-to-end including the full DQ + fallback + logging
+    chain.
+
+Code modified:
+  src/liq/features/volatility/estimate.py
+    Wiring: builds emitter from spec_hash + correlation_id, runs the
+    per-bar quality scan, enforces failure rate (emits
+    data_quality_rejected on raise), logs hard-error verdicts, resolves
+    the fallback chain once per call from a priority verdict scanned
+    across the whole window (emits estimator_fallback_applied when the
+    chain demoted), emits estimator_selected, per-bar quality_flag_set
+    events, threads the resolved estimator into the windowed dispatch,
+    and populates VolEstimate.quality_flags / .estimator_used per-bar
+    from the verdict list. Spec-hash uses BLAKE2-8 over a
+    flattened-asdict canonical encoding so two runs with the same spec
+    produce the same hash.
+
+Tests added:
+  tests/test_volatility_logging.py
+    9 tests pinning required fields on every record, per-estimate
+    bound fields, correlation_id stability, no-secrets redaction,
+    per-bar debouncing (one event per bar, second call merges flags
+    into the existing record), data_quality_rejected at ERROR level,
+    estimator_fallback_applied carries from/to/reason.
+  tests/test_volatility_quality.py
+    17 tests covering each §9 row: high<low / nonpositive /
+    missing-close hard errors, missing-open fallback eligibility,
+    zero-volume halted-day flag, missing-volume distinct from zero,
+    low-side H/L contradiction, disabled outlier detection, MAD
+    outlier detection, past-rolling-z outlier detection, PIT contract
+    (no future neighbors), LOW_CONFIDENCE until window filled,
+    past_rolling_z NaN until min_window and when past variance is zero,
+    empty failure-rate behavior, failure-rate enforcement (passes
+    under threshold, raises above), soft flags don't count.
+  tests/test_volatility_fallback.py
+    16 tests covering each §4.2 chain entry: every estimator clean →
+    self; missing prev close demotes YZ→RS, GK-YZ→GK, CtC→no-emit;
+    MISSING_OPEN → Parkinson for any requested estimator; H/L suspect
+    → CtC (or no-emit when prev close missing); hard error → no-emit;
+    decision shape (requested / selected / reason).
+
+Docs modified:
+  docs/exceptions.md
+    Appended "Raise-sites + retry eligibility" table with one row per
+    leaf class — raise location, caller response, retry-eligible flag.
+    Notes the pairing between VolDataQualityError and the
+    data_quality_rejected event.
+  docs/logging.md
+    Updated event catalog (events are no longer "scaffolded — emitted
+    by future iterations"; they're live). Added "Example records"
+    section with caplog-derived payloads for every event. Added a
+    "Debouncing" section explaining the union semantics for
+    quality_flag_set. Updated "No secrets" to list the case-insensitive
+    redacted key set.
+
+State:
+  AGENT_STATE.md
+    Phase 1 → done; Phase 1H → ready-for-review.
+
+Artifacts:
+  artifacts/phase-1H/verify-output.txt        (ruff format/check + ty all green)
+  artifacts/phase-1H/test-report.txt          (118 tests across the volatility surface)
+  artifacts/phase-1H/coverage-summary.txt     (quality.py 95%, fallback.py 100%)
+  artifacts/phase-1H/perf.json                (perf-smoke at 252×500: 80.64 calls/s)
+  artifacts/phase-1H/changed-files.txt        (this file)
+  artifacts/phase-1H/decisions.md

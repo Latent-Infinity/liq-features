@@ -173,7 +173,7 @@ class TemporalEncoderBootstrap:
     left-padded temporal context window, a deterministic projection is fitted
     from positive adjacent-window differences against sampled negative-window
     differences, and the resulting normalized embeddings are clustered. It keeps
-    the Phase 4 online-fit-per-fold contract without adding a heavy dependency.
+    the online-fit-per-fold contract without adding a heavy dependency.
     """
 
     def __init__(

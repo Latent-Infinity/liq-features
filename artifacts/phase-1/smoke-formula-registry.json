@@ -1,0 +1,85 @@
+{
+  "fixture": "ohlc_16bar",
+  "per_bar": {
+    "ctc": {
+      "max_abs_diff": 4.575333167888829e-17,
+      "gate": 1e-12,
+      "pass": true
+    },
+    "parkinson": {
+      "max_abs_diff": 9.324138683375338e-18,
+      "gate": 1e-12,
+      "pass": true
+    },
+    "garman_klass": {
+      "max_abs_diff": 2.42861286636753e-17,
+      "gate": 1e-12,
+      "pass": true
+    },
+    "rogers_satchell": {
+      "max_abs_diff": 3.037121335675019e-17,
+      "gate": 1e-12,
+      "pass": true
+    },
+    "gk_yang_zhang": {
+      "max_abs_diff": 2.42861286636753e-17,
+      "gate": 1e-12,
+      "pass": true
+    },
+    "yz_overnight_term": {
+      "max_abs_diff": 9.540979117872439e-18,
+      "gate": 1e-12,
+      "pass": true
+    },
+    "yz_open_close_term": {
+      "max_abs_diff": 4.575333167888829e-17,
+      "gate": 1e-12,
+      "pass": true
+    },
+    "yz_rs_term": {
+      "max_abs_diff": 3.037121335675019e-17,
+      "gate": 1e-12,
+      "pass": true
+    }
+  },
+  "windowed": {
+    "ctc": {
+      "window": 15,
+      "max_abs_diff": 1.7889335846010823e-18,
+      "gate": 1e-10,
+      "pass": true
+    },
+    "parkinson": {
+      "window": 15,
+      "max_abs_diff": 2.4936649967166602e-18,
+      "gate": 1e-10,
+      "pass": true
+    },
+    "garman_klass": {
+      "window": 15,
+      "max_abs_diff": 3.984442983884229e-18,
+      "gate": 1e-10,
+      "pass": true
+    },
+    "rogers_satchell": {
+      "window": 15,
+      "max_abs_diff": 4.445228907190568e-18,
+      "gate": 1e-10,
+      "pass": true
+    },
+    "gk_yang_zhang": {
+      "window": 15,
+      "max_abs_diff": 4.7704895589362195e-18,
+      "gate": 1e-10,
+      "pass": true
+    },
+    "yang_zhang": {
+      "window": 15,
+      "max_abs_diff": 4.391018798566293e-18,
+      "gate": 1e-10,
+      "pass": true
+    }
+  },
+  "all_passed": true,
+  "failures": []
+}

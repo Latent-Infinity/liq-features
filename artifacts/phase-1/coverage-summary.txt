@@ -1,0 +1,30 @@
+../../../../.pyenv/versions/3.12.8/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_volatility.py:5: in <module>
+    from liq.features.volatility import garman_klass, yang_zhang
+src/liq/features/__init__.py:40: in <module>
+    from liq.features.batch import cache_stats, compute_indicators
+src/liq/features/batch.py:28: in <module>
+    from liq.store.protocols import TimeSeriesStore
+../liq-store/src/liq/store/__init__.py:17: in <module>
+    from liq.store.config import create_parquet_store_from_env, load_parquet_config_from_env
+../liq-store/src/liq/store/config.py:9: in <module>
+    from liq.store.parquet import ParquetStore, ParquetStoreConfig
+../liq-store/src/liq/store/parquet.py:34: in <module>
+    import duckdb
+.venv/lib/python3.12/site-packages/duckdb/__init__.py:160: in <module>
+    from duckdb._dbapi_type_object import (
+.venv/lib/python3.12/site-packages/duckdb/_dbapi_type_object.py:28: in <module>
+    from duckdb import sqltypes
+.venv/lib/python3.12/site-packages/duckdb/sqltypes/__init__.py:3: in <module>
+    from _duckdb._sqltypes import (
+E   ModuleNotFoundError: No module named '_duckdb._sqltypes'; '_duckdb' is not a package
+=========================== short test summary info ============================
+ERROR tests/test_volatility_formulas.py
+ERROR tests/test_volatility_windowed.py
+ERROR tests/test_volatility_estimate.py
+ERROR tests/test_volatility_contract_xfail.py
+ERROR tests/test_volatility.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 5 errors during collection !!!!!!!!!!!!!!!!!!!!
+============================== 5 errors in 0.34s ===============================

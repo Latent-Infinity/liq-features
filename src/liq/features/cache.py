@@ -44,8 +44,6 @@ import polars as pl
 
 from liq.features.params import hash_params
 from liq.store import key_builder
-from liq.store.config import create_parquet_store_from_env
-from liq.store.parquet import ParquetStore
 from liq.store.protocols import TimeSeriesStore
 
 if TYPE_CHECKING:
@@ -195,8 +193,12 @@ class IndicatorCache:
         """
         if storage is None:
             if data_root is not None:
+                from liq.store.parquet import ParquetStore
+
                 storage = ParquetStore(str(Path(data_root).expanduser()))
             else:
+                from liq.store.config import create_parquet_store_from_env
+
                 storage = create_parquet_store_from_env()
         self._storage = storage
         self._index_key = "cache/indicators/index"

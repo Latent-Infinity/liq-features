@@ -372,9 +372,7 @@ def _ohlc_rows(rows: list[dict]) -> pl.DataFrame:
     from datetime import UTC, datetime, timedelta
 
     base = datetime(2024, 1, 1, tzinfo=UTC)
-    return pl.DataFrame(
-        [{"timestamp": base + timedelta(hours=i), **r} for i, r in enumerate(rows)]
-    )
+    return pl.DataFrame([{"timestamp": base + timedelta(hours=i), **r} for i, r in enumerate(rows)])
 
 
 class TestTripleBarrierLabelsAtrCoherent:
@@ -396,7 +394,9 @@ class TestTripleBarrierLabelsAtrCoherent:
         # Entry at row 3 (ATR warmup ok with window=3); next bar hits TP=104 only.
         df = df.with_columns(
             pl.when(pl.col("timestamp") == df["timestamp"][4])
-            .then(105.0).otherwise(pl.col("high")).alias("high")
+            .then(105.0)
+            .otherwise(pl.col("high"))
+            .alias("high")
         )
         out = triple_barrier_labels_atr_coherent(
             df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
@@ -411,7 +411,9 @@ class TestTripleBarrierLabelsAtrCoherent:
         # Next bar's low pierces SL=98; high stays inside.
         df = df.with_columns(
             pl.when(pl.col("timestamp") == df["timestamp"][4])
-            .then(97.0).otherwise(pl.col("low")).alias("low")
+            .then(97.0)
+            .otherwise(pl.col("low"))
+            .alias("low")
         )
         out = triple_barrier_labels_atr_coherent(
             df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
@@ -424,9 +426,13 @@ class TestTripleBarrierLabelsAtrCoherent:
         idx = 4
         df = df.with_columns(
             pl.when(pl.col("timestamp") == df["timestamp"][idx])
-            .then(105.0).otherwise(pl.col("high")).alias("high"),
+            .then(105.0)
+            .otherwise(pl.col("high"))
+            .alias("high"),
             pl.when(pl.col("timestamp") == df["timestamp"][idx])
-            .then(97.0).otherwise(pl.col("low")).alias("low"),
+            .then(97.0)
+            .otherwise(pl.col("low"))
+            .alias("low"),
         )
         out = triple_barrier_labels_atr_coherent(
             df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
