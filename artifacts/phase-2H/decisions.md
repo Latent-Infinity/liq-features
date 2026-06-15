@@ -41,17 +41,24 @@
    exceeds" intuition; the keyword arguments let the §10.2 gate-parameter
    ablation sweep these without code edits.
 
-## Deviations
+## Follow-on completion
 
-- **No `volatility_signature` VolComponent emitted yet.** The impl plan
-  asks for "volatility-signature plot data emitted as a `VolComponent`
-  named `volatility_signature` when minute data are available". The
-  primitives (compute_rv at 1m / 5m / 15m) are in `rv.py`; wiring them
-  into `VolEstimate.components` waits for the minute-data caller path
-  in `estimate.py`, which lands alongside the §3.6 mode-availability
-  table (minute-enabled production vs degraded fallback). The RV-noise gate
-  acceptance does not require this VolComponent surface, and the
-  decision keeps the change tightly scoped.
+- **`volatility_signature` VolComponent now emitted.** Closed the
+  earlier "deferred" deviation. `estimate_variance(...)` accepts an
+  optional `intra_bar_returns: dict[int, list[float]] | None` kwarg;
+  when provided, the per-bar volatility-signature component is built
+  via `compute_rv` at 1m plus grouped 5m / 15m returns, the §5.3 gate
+  is applied per bar using `VolQualityPolicy.rv_noise_ratio_threshold`,
+  and a `rv_noise_gate_fired` event is emitted on every trigger. The
+  component lives at `VolEstimate.components["volatility_signature"]`
+  with `source="minute_rv"`. Bars without minute data carry `NaN` so
+  consumers can distinguish "unobserved" from "zero variance". When
+  the caller doesn't pass `intra_bar_returns`, the component is
+  simply absent from the dict (no NaN sentinel for the whole series).
+  Gate triggers also append `NOISY_RV_TARGET` to the affected bar's
+  top-level and component quality flags.
+
+## Deviations
 - **`derive_quality_flags` is not yet called from `estimate.py`.** The
   pattern detectors are implemented and unit-tested but
   `estimate_variance` does not invoke `derive_quality_flags` against a

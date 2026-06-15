@@ -200,6 +200,34 @@ class VolEventEmitter:
         payload: dict[str, object] = {"rule": rule, **details}
         self._emit(logging.ERROR, "data_quality_rejected", payload)
 
+    def rv_noise_gate_fired(
+        self,
+        *,
+        bar_index: int,
+        rv_1m: float,
+        rv_5m: float,
+        rv_15m: float,
+        price_movement: float,
+        target: str,
+    ) -> None:
+        """The §5.3 RV-noise gate rejected the 1m sampling for ``bar_index``.
+
+        ``target`` is the resolved interval the caller fell back to
+        (``"rv_5m"`` by default).
+        """
+        self._emit(
+            logging.INFO,
+            "rv_noise_gate_fired",
+            {
+                "bar_index": bar_index,
+                "rv_1m": rv_1m,
+                "rv_5m": rv_5m,
+                "rv_15m": rv_15m,
+                "price_movement": price_movement,
+                "target": target,
+            },
+        )
+
 
 def build_emitter(
     *,

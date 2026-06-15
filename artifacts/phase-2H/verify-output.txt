@@ -1,4 +1,4 @@
-136 files already formatted
+22 files already formatted
 ---
 All checks passed!
 ---

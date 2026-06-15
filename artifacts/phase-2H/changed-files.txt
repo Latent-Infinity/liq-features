@@ -46,9 +46,26 @@ Docs modified:
     derivation table and policy-threshold semantics.
   docs/logging.md
     rv_noise_gate_fired event payload documented (rv_1m, rv_5m, rv_15m,
-    price_movement, target). New event quality_flag_derivation for the
-    §5.4-table-driven flags (carries per-estimator inputs and the
-    estimator_dispersion value).
+    price_movement, target).
+    NEW: volatility_signature VolComponent surface section added.
+
+Follow-on volatility_signature wiring:
+  src/liq/features/volatility/estimate.py
+    +intra_bar_returns: dict[int, list[float]] | None = None kwarg.
+    When provided, _build_volatility_signature() runs the §5.3 gate
+    per bar using grouped 5m / 15m returns and emits the
+    volatility_signature VolComponent at source="minute_rv". Per-bar
+    fallback to RV_5m when the gate trips; the threshold comes from
+    VolQualityPolicy.rv_noise_ratio_threshold. Gate trips add
+    NOISY_RV_TARGET to the top-level and component quality flags.
+  src/liq/features/volatility/logging.py
+    +rv_noise_gate_fired emitter method (bar_index, rv_1m, rv_5m,
+    rv_15m, price_movement, target) — INFO level.
+  tests/test_volatility_signature.py  (new — 6 tests)
+    Pins: absent without minute data; present with source=minute_rv;
+    NaN for uncovered bars; rv_noise_gate_fired event emitted on
+    inflated 1m RV with the required fields; NOISY_RV_TARGET flagging;
+    grouped coarser returns; spec-controlled noise threshold.
 
 State:
   AGENT_STATE.md  quality/fallback work → done; RV-noise gate → ready-for-review.

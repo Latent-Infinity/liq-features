@@ -41,10 +41,12 @@ from .logging import build_emitter
 from .quality import (
     FLAG_DATA_QUALITY_FAILURE,
     FLAG_MISSING_OPEN,
+    FLAG_NOISY_RV_TARGET,
     QualityVerdict,
     check_bar_quality,
     enforce_failure_rate,
 )
+from .rv import compute_rv, rv_noise_gate
 
 if TYPE_CHECKING:
     pass
@@ -318,6 +320,84 @@ def _windowed_for_estimator(
     return primary, components
 
 
+def _signature_for_bar(
+    bar_index: int,
+    intra_returns: list[float],
+    emitter,
+    *,
+    ratio_threshold: float,
+) -> tuple[float, bool]:
+    """Compute the §5.3-gated realized variance for ``bar_index``.
+
+    Samples RV at 1m, 5m, and 15m strides over ``intra_returns``,
+    applies the noise gate, emits ``rv_noise_gate_fired`` when it trips,
+    and returns the 5m RV in that case (the canonical fallback). When
+    the gate stays down, returns the 1m RV.
+    """
+    rv_1m = compute_rv(intra_returns)
+    rv_5m = compute_rv(_coarsen_returns(intra_returns, stride=5))
+    rv_15m = compute_rv(_coarsen_returns(intra_returns, stride=15))
+    price_movement = sum(intra_returns)
+    rv_by_interval = {"1m": rv_1m, "5m": rv_5m, "15m": rv_15m}
+    if rv_noise_gate(
+        rv_by_interval,
+        price_movement=price_movement,
+        ratio_threshold=ratio_threshold,
+    ):
+        emitter.rv_noise_gate_fired(
+            bar_index=bar_index,
+            rv_1m=rv_1m,
+            rv_5m=rv_5m,
+            rv_15m=rv_15m,
+            price_movement=price_movement,
+            target="rv_5m",
+        )
+        return rv_5m, True
+    return rv_1m, False
+
+
+def _coarsen_returns(intra_returns: list[float], *, stride: int) -> list[float]:
+    """Aggregate consecutive one-minute returns into coarser returns."""
+    if stride <= 1:
+        return list(intra_returns)
+    return [
+        sum(intra_returns[i : i + stride])
+        for i in range(0, len(intra_returns) - stride + 1, stride)
+    ]
+
+
+def _build_volatility_signature(
+    *,
+    n_bars: int,
+    intra_bar_returns: dict[int, list[float]],
+    emitter,
+    ratio_threshold: float,
+) -> tuple[list[float], set[int]]:
+    """Build the per-bar volatility-signature series.
+
+    Bars present in ``intra_bar_returns`` get the §5.3-gated RV; bars
+    without minute data carry NaN so consumers can distinguish
+    "unobserved" from "zero variance".
+    """
+    series: list[float] = []
+    noisy_indices: set[int] = set()
+    for i in range(n_bars):
+        returns = intra_bar_returns.get(i)
+        if not returns:
+            series.append(NAN)
+            continue
+        value, noisy = _signature_for_bar(
+            i,
+            returns,
+            emitter,
+            ratio_threshold=ratio_threshold,
+        )
+        series.append(value)
+        if noisy:
+            noisy_indices.add(i)
+    return series, noisy_indices
+
+
 def _maybe_annualize(
     var_per_bar: list[float], spec: VolEstimatorSpec
 ) -> tuple[list[float] | None, list[float] | None]:
@@ -343,6 +423,7 @@ def estimate_variance(
     spec: VolEstimatorSpec,
     *,
     asof: datetime | None = None,
+    intra_bar_returns: dict[int, list[float]] | None = None,
 ) -> VolEstimate:
     """Compute the canonical point-in-time trailing risk variance.
 
@@ -371,6 +452,12 @@ def estimate_variance(
             policy affecting the emitted number.
         asof: Optional explicit timestamp anchoring the PIT check;
             when ``None``, the latest bar's timestamp is used.
+        intra_bar_returns: Optional ``{bar_index: list[float]}`` mapping
+            of intra-bar minute log-returns. When provided, the
+            ``volatility_signature`` ``VolComponent`` is populated with
+            the resolved per-bar realized variance (5m fallback when
+            the §5.3 RV-noise gate fires, 1m otherwise). When omitted,
+            no ``volatility_signature`` component is emitted.
 
     Returns:
         A ``VolEstimate`` per research plan §3.6.
@@ -459,6 +546,19 @@ def estimate_variance(
 
     estimator_used = [resolved_estimator] * bars.height
     quality_flags: list[list[str]] = [list(v.flags) for v in verdicts]
+    signature_values: list[float] | None = None
+
+    if intra_bar_returns is not None:
+        signature_values, noisy_indices = _build_volatility_signature(
+            n_bars=bars.height,
+            intra_bar_returns=intra_bar_returns,
+            emitter=emitter,
+            ratio_threshold=spec.quality_policy.rv_noise_ratio_threshold,
+        )
+        for bar_index in sorted(noisy_indices):
+            if FLAG_NOISY_RV_TARGET not in quality_flags[bar_index]:
+                quality_flags[bar_index].append(FLAG_NOISY_RV_TARGET)
+            emitter.quality_flag_set(bar_index=bar_index, flags=[FLAG_NOISY_RV_TARGET])
 
     components_out: dict[str, VolComponent] = {}
     source_map: dict[str, ComponentSource] = {
@@ -470,6 +570,20 @@ def estimate_variance(
             value=pl.Series(name, series, dtype=pl.Float64),
             unit="per_bar_variance",
             source=source_map.get(name, "derived"),
+            valid_from=valid_from.alias("valid_from"),
+            quality_flags=pl.Series("quality_flags", quality_flags, dtype=pl.List(pl.Utf8)),
+        )
+
+    # Volatility-signature emission (research plan §3.6, §5.3). Only
+    # built when the caller supplies intra-bar minute returns; bars
+    # without minute data carry NaN; bars whose 1m RV trips the §5.3
+    # noise gate fall back to the 5m sampling and emit
+    # ``rv_noise_gate_fired``.
+    if signature_values is not None:
+        components_out["volatility_signature"] = VolComponent(
+            value=pl.Series("volatility_signature", signature_values, dtype=pl.Float64),
+            unit="per_bar_variance",
+            source="minute_rv",
             valid_from=valid_from.alias("valid_from"),
             quality_flags=pl.Series("quality_flags", quality_flags, dtype=pl.List(pl.Utf8)),
         )

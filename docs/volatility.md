@@ -142,6 +142,24 @@ uv run python scripts/eval_simulation_minute.py --noise micro --output json \
 returning `true`. The companion `--noise none` run leaves the gate
 down.
 
+### `volatility_signature` VolComponent
+
+When the caller passes `intra_bar_returns={bar_index: [log_returns]}`
+to `estimate_variance(...)`, a `volatility_signature` entry is added to
+`VolEstimate.components` carrying one realized-variance value per bar:
+
+- Bars without minute data → `NaN`.
+- Bars whose 1m sampling RV is consistent with the 5m / 15m readings
+  → 1m RV is used.
+- Bars whose 1m sampling RV trips the §5.3 noise gate → 5m RV is used,
+  and the emitter logs a `rv_noise_gate_fired` event for that bar.
+
+The component's `source` is `"minute_rv"` (vs the daily-OHLC sources
+on the `cont` / `overnight_gap` components); its `unit` is
+`per_bar_variance`. Consumers driving the §5.3 volatility-signature
+plot or downstream regime/sizing code can pull the per-bar value
+without re-computing RV themselves.
+
 ## Estimator dispersion + §5.4 quality flags
 
 The decomposition layer in `liq.features.volatility.decomposition`
