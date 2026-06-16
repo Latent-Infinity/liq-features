@@ -5,8 +5,6 @@ import pytest
 
 from liq.features.labels import (
     TripleBarrierConfig,
-    build_binary_next_bar_labels,
-    map_labels_to_binary,
     triple_barrier_labels,
     triple_barrier_labels_adaptive,
     triple_barrier_labels_atr_coherent,

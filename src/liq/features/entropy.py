@@ -16,9 +16,9 @@ def sample_entropy(series: Sequence[float | int], m: int = 2, r: float = 0.2) ->
 
     def _phi(m):
         count = 0
-        for i in range(n - window):
-            for j in range(i + 1, n - window):
-                if np.all(np.abs(x[i : i + window] - x[j : j + window]) <= r * np.std(x)):
+        for i in range(n - m):
+            for j in range(i + 1, n - m):
+                if np.all(np.abs(x[i : i + m] - x[j : j + m]) <= r * np.std(x)):
                     count += 1
         return count
 

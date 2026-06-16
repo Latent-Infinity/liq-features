@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 from dataclasses import FrozenInstanceError
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from liq.features.vol_forecast import (
     ForecastTarget,
-    VolForecastFeatures,
     ReasonCode,
     SizeVolInput,
-    assert_no_straddle,
+    VolForecastFeatures,
     assert_feature_forecast_clock,
     assert_forecast_size_clock,
     assert_forecast_target_clock,
+    assert_no_straddle,
     assert_sizing_order_clock,
 )
 from liq.features.vol_forecast.contracts import (

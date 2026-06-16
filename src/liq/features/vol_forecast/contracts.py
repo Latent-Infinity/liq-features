@@ -6,10 +6,10 @@ engineering and model objects are intentionally not implemented here.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Literal, TypedDict
-
+from typing import Literal, TypedDict
 
 ForecastOriginType = Literal["EOD", "PRE_OPEN", "INTRADAY"]
 ForecastTargetIntervalType = Literal[

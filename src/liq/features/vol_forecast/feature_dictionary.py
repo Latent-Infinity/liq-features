@@ -11,11 +11,10 @@ import json
 from hashlib import sha256
 
 from .contracts import (
+    FEATURE_DICTIONARY_VERSION,
     FeatureDictionary,
     feature_dictionary_id,
-    FEATURE_DICTIONARY_VERSION,
 )
-
 
 forecast_feature_dictionary: FeatureDictionary = {
     "daily_var": {
