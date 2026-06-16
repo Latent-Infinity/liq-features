@@ -28,7 +28,7 @@ class ForecastingModelInput(TypedDict, total=False):
     """Model-only payload used by forecasting consumers.
 
     The type lives here to keep payload keys centralized while the
-    actual model implementation remains F1+.
+    actual model implementation remains in the model library.
     """
 
     feature_row_id: str
@@ -189,4 +189,3 @@ __all__: Iterable[str] = [
     "feature_dictionary_metadata",
     "FEATURE_DICTIONARY_VERSION",
 ]
-
