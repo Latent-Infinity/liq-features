@@ -1,5 +1,7 @@
 """Tests for mRMR feature selection wrapper."""
 
+import importlib.util
+
 import numpy as np
 import polars as pl
 

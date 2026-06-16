@@ -744,6 +744,7 @@ dependencies = [
     { name = "rich" },
     { name = "tenacity" },
     { name = "typer" },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -772,6 +773,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=9.0" },
     { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.1" },
     { name = "typer", specifier = ">=0.15" },
+    { name = "websockets", specifier = ">=15" },
 ]
 provides-extras = ["dev"]
 

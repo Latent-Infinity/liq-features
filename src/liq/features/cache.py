@@ -64,6 +64,7 @@ except Exception:
     _INDEX_LOCK = None
 
 # Try to import xxhash for faster hashing
+xxhash: Any | None
 try:
     xxhash: Any | None = importlib.import_module("xxhash")
 except ImportError:

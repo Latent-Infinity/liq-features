@@ -11,6 +11,8 @@ from typing import Literal
 import numpy as np
 import polars as pl
 
+IndexOrder = Literal["c", "fortran"]
+
 
 def to_numpy_float64(
     data: pl.DataFrame | pl.Series,

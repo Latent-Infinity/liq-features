@@ -172,9 +172,9 @@ def _build_metadata_parameter_specs(
         get_param_grid = _get_param_grid
 
     allowed_grid = {}
-    if get_param_grid is not None:
+    if param_grids_module is not None:
         try:
-            allowed_grid = get_param_grid(indicator_name)
+            allowed_grid = param_grids_module.get_param_grid(indicator_name)
         except Exception:
             allowed_grid = {}
 

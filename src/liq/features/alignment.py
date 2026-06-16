@@ -5,6 +5,11 @@ from __future__ import annotations
 import polars as pl
 
 
+def _feature_columns(df: pl.DataFrame, timestamp_col: str, by: list[str]) -> list[str]:
+    excluded = {timestamp_col, *by}
+    return [col for col in df.columns if col not in excluded]
+
+
 def align_higher_timeframe(
     base_df: pl.DataFrame,
     higher_df: pl.DataFrame,

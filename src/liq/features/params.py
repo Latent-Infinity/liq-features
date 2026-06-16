@@ -22,7 +22,7 @@ except ImportError:
     xxhash = None
 
 
-def normalize_params(params: dict[str, Any]) -> dict[str, Any]:
+def normalize_params(params: Any) -> Any:
     """Normalize parameter dictionary for consistent hashing.
 
     Recursively sorts dictionary keys to ensure consistent ordering regardless

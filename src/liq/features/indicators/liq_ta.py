@@ -697,6 +697,19 @@ def _compute_dynamic(
         df, entry["input_names"], price_column=price_col, indicator_name=entry["name"]
     )
     kwargs = _backend_kwargs(entry, params)
+    if entry.get("_function_name") == "autocorr":
+        lag = kwargs.get("lag")
+        period = kwargs.get("period")
+        if isinstance(lag, int | float) and isinstance(period, int | float):
+            safe_lag = max(1, int(lag))
+            safe_period = max(1, int(period))
+            if safe_period <= safe_lag:
+                safe_period = safe_lag + 1
+            kwargs["lag"] = safe_lag
+            kwargs["period"] = safe_period
+        elif isinstance(lag, int | float):
+            kwargs["lag"] = max(1, int(lag))
+
     default_period = kwargs.get("period")
     args = _backend_args(entry, inputs, default_period=default_period)
 

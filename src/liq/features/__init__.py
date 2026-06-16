@@ -37,6 +37,7 @@ Example:
 """
 
 from liq.features.aggregation import Aggregator, aggregate_to_timeframe
+from liq.features.alignment import align_feature_frame, align_feature_frames, align_higher_timeframe
 from liq.features.batch import cache_stats, compute_indicators
 from liq.features.cache import CacheManager, IndicatorCache
 from liq.features.cache_exceptions import (
@@ -143,6 +144,9 @@ __all__ = [
     # Aggregation
     "Aggregator",
     "aggregate_to_timeframe",
+    "align_higher_timeframe",
+    "align_feature_frame",
+    "align_feature_frames",
     # Batch computation
     "compute_indicators",
     "cache_stats",

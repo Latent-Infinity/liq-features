@@ -7,6 +7,29 @@ import math
 import polars as pl
 
 
+def _timestamp_col(df: pl.DataFrame) -> str:
+    for candidate in ("timestamp", "ts"):
+        if candidate in df.columns:
+            return candidate
+    raise ValueError("DataFrame must include a 'timestamp' or 'ts' column")
+
+
+def _sort_columns(df: pl.DataFrame, timestamp_col: str) -> list[str]:
+    return ["symbol", timestamp_col] if "symbol" in df.columns else [timestamp_col]
+
+
+def _lag(expr: pl.Expr, df: pl.DataFrame) -> pl.Expr:
+    return expr.shift(1).over("symbol") if "symbol" in df.columns else expr.shift(1)
+
+
+def _safe_ratio(numerator: pl.Expr, denominator: pl.Expr, default: float = 0.0) -> pl.Expr:
+    return (
+        pl.when(denominator.is_not_null() & (denominator != 0))
+        .then(numerator / denominator)
+        .otherwise(default)
+    )
+
+
 def corwin_schultz_spread(df: pl.DataFrame) -> float:
     """Estimate bid-ask spread from high/low bars using Corwin-Schultz."""
     if df.height < 2:
