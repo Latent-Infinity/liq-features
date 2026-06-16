@@ -20,10 +20,12 @@ from liq.features.vol_forecast import (
 )
 from liq.features.vol_forecast.contracts import (
     FEATURE_DICTIONARY_VERSION,
+    LOAD_BEARING_TIMESTAMP_FIELDS,
     feature_dictionary_id,
     feature_dictionary_metadata,
 )
 from liq.features.vol_forecast.feature_dictionary import forecast_feature_dictionary
+from liq.validation.vol_forecast import assert_feature_availability
 
 
 def _base_features() -> VolForecastFeatures:
@@ -211,3 +213,10 @@ def test_no_straddle_invariant() -> None:
     feature = _base_features()
     forecast = _base_forecast()
     assert_no_straddle(feature=feature, forecast=forecast)
+
+
+def test_load_bearing_timestamps_feed_validation_gate() -> None:
+    feature = _base_features()
+
+    assert {"availability_ts", "valid_from"}.issubset(set(LOAD_BEARING_TIMESTAMP_FIELDS))
+    assert_feature_availability([feature])

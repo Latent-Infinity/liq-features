@@ -2,6 +2,7 @@
 
 from .contracts import (
     FEATURE_DICTIONARY_VERSION,
+    LOAD_BEARING_TIMESTAMP_FIELDS,
     ForecastingModelInput,
     ForecastOriginType,
     ForecastTarget,
@@ -45,6 +46,7 @@ __all__ = [
     "feature_dictionary_id",
     "feature_dictionary_metadata",
     "FEATURE_DICTIONARY_VERSION",
+    "LOAD_BEARING_TIMESTAMP_FIELDS",
     "SizeVolInput",
     "assert_feature_forecast_clock",
     "assert_forecast_target_clock",

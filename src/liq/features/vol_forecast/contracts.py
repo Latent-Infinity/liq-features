@@ -162,6 +162,7 @@ FeatureDictionaryMetadata = dict[str, object]
 
 feature_dictionary_id: str = "vol_forecast_features_v1"
 FEATURE_DICTIONARY_VERSION: str = "v1.0.0"
+LOAD_BEARING_TIMESTAMP_FIELDS: tuple[str, ...] = ("availability_ts", "valid_from")
 
 
 feature_dictionary_metadata: FeatureDictionaryMetadata = {
@@ -188,4 +189,5 @@ __all__: Iterable[str] = [
     "feature_dictionary_id",
     "feature_dictionary_metadata",
     "FEATURE_DICTIONARY_VERSION",
+    "LOAD_BEARING_TIMESTAMP_FIELDS",
 ]
