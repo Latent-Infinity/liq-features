@@ -65,6 +65,18 @@ from liq.features.feature_set import FeatureDefinition, FeatureSet
 from liq.features.forex import build_features as build_forex_features
 from liq.features.forex_labels import make_forex_labels
 from liq.features.indicators import configure_defaults, reset_defaults
+from liq.features.labels import (
+    TripleBarrierConfig,
+    build_binary_next_bar_labels,
+    map_labels_to_binary,
+    triple_barrier_labels,
+    triple_barrier_labels_adaptive,
+)
+from liq.features.microstructure import (
+    build_order_book_features,
+    build_quote_features,
+    build_trade_bar_features,
+)
 from liq.features.params import format_params_key, hash_params, normalize_params
 from liq.features.quantization import (
     INDICATOR_SCALES,
@@ -120,6 +132,14 @@ __all__ = [
     "DEFAULT_FIBONACCI_WINDOWS",
     "build_forex_features",
     "make_forex_labels",
+    "TripleBarrierConfig",
+    "build_binary_next_bar_labels",
+    "map_labels_to_binary",
+    "triple_barrier_labels",
+    "triple_barrier_labels_adaptive",
+    "build_order_book_features",
+    "build_quote_features",
+    "build_trade_bar_features",
     # Aggregation
     "Aggregator",
     "aggregate_to_timeframe",

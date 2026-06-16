@@ -43,6 +43,27 @@ class TripleBarrierConfig:
     volatility_window: int = 20
 
 
+def build_binary_next_bar_labels(close: pl.Series, *, horizon_bars: int = 1) -> pl.Series:
+    """Build binary labels from forward close movement.
+
+    Returns ``1.0`` when the future close at ``horizon_bars`` is above the
+    current close and ``0.0`` otherwise.
+    """
+
+    if horizon_bars < 1:
+        raise ValueError("horizon_bars must be >= 1")
+    shifted = close.shift(-horizon_bars)
+    labels = (shifted > close).cast(pl.Float64).fill_null(0.0)
+    return labels.alias("label")
+
+
+def map_labels_to_binary(labels: pl.Series) -> pl.Series:
+    """Map arbitrary labels to {0.0, 1.0} using positive-vs-non-positive semantics."""
+
+    name = labels.name or "label"
+    return (labels.cast(pl.Float64) > 0.0).cast(pl.Float64).fill_null(0.0).alias(name)
+
+
 def triple_barrier_labels(df: pl.DataFrame, cfg: TripleBarrierConfig) -> list[int]:
     """Generate +1/-1/0 labels using triple barrier method.
 
@@ -136,7 +157,7 @@ def triple_barrier_labels_adaptive(
         for i in range(n):
             if i < window:
                 # Not enough data for full window
-                std = _compute_std(returns[: i + 1]) if i > 0 else 0.01  # Default volatility
+                std = _compute_std(returns[: i + 1]) if i > 0 else 0.01
             else:
                 std = _compute_std(returns[i - window + 1 : i + 1])
             rolling_std.append(std if std > 0 else 0.01)
@@ -179,3 +200,81 @@ def _compute_std(values: list) -> float:
     mean = sum(values) / len(values)
     variance = sum((x - mean) ** 2 for x in values) / (len(values) - 1)
     return variance**0.5
+
+
+def triple_barrier_labels_atr_coherent(
+    df: pl.DataFrame,
+    *,
+    atr_window: int = 20,
+    profit_atr: float = 2.0,
+    stop_atr: float = 1.0,
+    max_holding: int = 3,
+) -> pl.DataFrame:
+    """Barrier-coherent triple-barrier labels (ATR + intrabar high/low).
+
+    Vol estimator: ATR (mean true-range over ``atr_window`` bars; the first
+    row's TR = high − low). Barrier touches use bar high/low with the
+    adverse-path tie rule (same-bar both => stop wins), mirroring
+    ``liq-sim/brackets.process_brackets`` exactly so the label and the
+    simulator's bracket execution are coherent by construction. Per-row
+    absolute ``tb_sl_price`` / ``tb_tp_price`` are emitted so the runner can
+    attach them as bracket metadata at entry (eliminating the
+    label↔execution geometry mismatch).
+
+    Long-only binary: ``1`` if take-profit hits first within ``max_holding``
+    bars, else ``0`` (stop or timeout — the long thesis did not pay).
+    """
+    n = df.height
+    highs = df["high"].to_list()
+    lows = df["low"].to_list()
+    closes = df["close"].to_list()
+
+    trs: list[float] = [float(highs[0]) - float(lows[0])] if n > 0 else []
+    for i in range(1, n):
+        prev_close = float(closes[i - 1])
+        trs.append(
+            max(
+                float(highs[i]) - float(lows[i]),
+                abs(float(highs[i]) - prev_close),
+                abs(float(lows[i]) - prev_close),
+            )
+        )
+    atrs: list[float] = []
+    for i in range(n):
+        start = max(0, i - atr_window + 1)
+        window = trs[start : i + 1]
+        atrs.append(sum(window) / len(window) if window else 0.0)
+
+    labels = [0] * n
+    sl_prices = [0.0] * n
+    tp_prices = [0.0] * n
+    for i in range(n):
+        atr = atrs[i]
+        if atr <= 0.0:
+            continue
+        entry = float(closes[i])
+        sl = entry - stop_atr * atr
+        tp = entry + profit_atr * atr
+        sl_prices[i] = sl
+        tp_prices[i] = tp
+        end = min(n, i + max_holding + 1)
+        for j in range(i + 1, end):
+            hit_tp = float(highs[j]) >= tp
+            hit_sl = float(lows[j]) <= sl
+            if hit_sl:
+                # SL hit (or both same-bar -> adverse-path: SL wins)
+                labels[i] = 0
+                break
+            if hit_tp:
+                labels[i] = 1
+                break
+        # no touch within horizon -> labels[i] stays 0 (timeout)
+
+    return df.with_columns(
+        [
+            pl.Series("label", labels, dtype=pl.Int64),
+            pl.Series("tb_sl_price", sl_prices, dtype=pl.Float64),
+            pl.Series("tb_tp_price", tp_prices, dtype=pl.Float64),
+            pl.Series("tb_atr", atrs, dtype=pl.Float64),
+        ]
+    )

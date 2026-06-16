@@ -2,6 +2,21 @@
 
 A component of the Latent Infinity Quant (LIQ) ecosystem, `liq-features` transforms raw market data into ML-ready features. It computes technical indicators, implements the midrange-first philosophy, and provides a feature store API that caches through `liq-store` (ParquetStore by default, or any `TimeSeriesStore`).
 
+## Volatility (canonical risk-variance estimator)
+
+`liq.features.volatility.estimate_variance(bars, spec, *, asof=None) -> VolEstimate`
+is the canonical entry point. It dispatches the formula registry
+(CtC, Parkinson, Garman-Klass, Rogers-Satchell, GK-YZ, Yang-Zhang),
+enforces PIT, applies the data-quality fallback chain, and emits
+structured logs. The canonical scalar is **close-to-close risk
+variance** (`risk_var_t`) using the **`gk_yang_zhang`** formula —
+the MCS_B winner under Option B (see decisions registry §5).
+
+- Contract + formula reference: [`docs/volatility.md`](docs/volatility.md)
+- Exception hierarchy: [`docs/exceptions.md`](docs/exceptions.md)
+- Structured-log catalog: [`docs/logging.md`](docs/logging.md)
+- ATR migration: [`liq-risk/docs/atr-retirement.md`](../liq-risk/docs/atr-retirement.md)
+
 ## Installation
 
 ```bash

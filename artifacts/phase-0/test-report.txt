@@ -1,0 +1,14 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.8, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/firestrand/Projects/latenty-infinity/quant/liq-features
+configfile: pyproject.toml
+plugins: anyio-4.12.1, hypothesis-6.151.9, cov-7.0.0
+collected 844 items
+
+Full suite:
+  840 passed, 4 xfailed in 5.34s
+
+Phase-0 contract slice:
+  tests/test_volatility_contract_xfail.py -> 6 passed, 4 xfailed
+Import smoke:
+  from liq.features.volatility import estimate_variance, VolEstimatorSpec -> OK

@@ -28,3 +28,33 @@ def align_higher_timeframe(
         strategy="backward",
     )
     return aligned
+
+
+def align_feature_frame(
+    base_df: pl.DataFrame,
+    feature_df: pl.DataFrame,
+    *,
+    shift_periods: int = 0,
+    prefix: str | None = None,
+    timestamp_col: str = "timestamp",
+) -> pl.DataFrame:
+    """Align an external feature frame to base timestamps without look-ahead."""
+    if base_df.is_empty() or feature_df.is_empty():
+        return base_df
+
+    aligned_features = feature_df.sort(timestamp_col)
+    feature_columns = [column for column in aligned_features.columns if column != timestamp_col]
+    if shift_periods:
+        aligned_features = aligned_features.with_columns(
+            [pl.col(column).shift(shift_periods) for column in feature_columns]
+        )
+    if prefix:
+        aligned_features = aligned_features.rename(
+            {column: f"{prefix}{column}" for column in feature_columns}
+        )
+
+    return base_df.sort(timestamp_col).join_asof(
+        aligned_features,
+        on=timestamp_col,
+        strategy="backward",
+    )

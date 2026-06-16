@@ -1,0 +1,14 @@
+{
+  "n_symbols": 500,
+  "n_bars_per_symbol": 252,
+  "wall_clock_s": 6.2004,
+  "per_call_s": {
+    "min": 0.011088,
+    "p50": 0.011949,
+    "p95": 0.012778,
+    "p99": 0.013356,
+    "max": 0.01762,
+    "mean": 0.011992
+  },
+  "throughput_calls_per_s": 80.64
+}

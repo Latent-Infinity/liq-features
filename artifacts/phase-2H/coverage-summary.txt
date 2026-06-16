@@ -1,0 +1,19 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.8, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/firestrand/Projects/latenty-infinity/quant/liq-features
+configfile: pyproject.toml
+plugins: anyio-4.12.1, hypothesis-6.151.9, liq-validation-0.1.2, cov-7.0.0
+collected 30 items
+
+tests/test_volatility_signature.py ......                                [ 20%]
+tests/test_volatility_rv.py ...............                              [ 70%]
+tests/test_volatility_decomposition.py .........                         [100%]
+
+============================== 30 passed in 1.85s ==============================
+Name                                           Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------------
+src/liq/features/volatility/decomposition.py      43      2     18      3    92%   54, 70, 116->121
+src/liq/features/volatility/estimate.py          237     49    110     31    75%   111-115, 128, 130, 132, 135, 144, 146, 151, 155, 162, 172, 174, 191, 193, 196-197, 199, 219, 228, 231, 251-253, 255, 257, 259, 261-263, 273, 318-320, 362, 410-418, 484-489, 498, 509, 534->544, 559->561
+src/liq/features/volatility/rv.py                 32      0      6      0   100%
+------------------------------------------------------------------------------------------
+TOTAL                                            312     51    134     34    79%

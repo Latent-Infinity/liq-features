@@ -1,11 +1,13 @@
 """Tests for liq.features.labels module."""
 
 import polars as pl
+import pytest
 
 from liq.features.labels import (
     TripleBarrierConfig,
     triple_barrier_labels,
     triple_barrier_labels_adaptive,
+    triple_barrier_labels_atr_coherent,
 )
 
 
@@ -363,3 +365,93 @@ class TestTripleBarrierLabelsAdaptive:
 
         # Labels should match when using fixed thresholds
         assert original_labels == adaptive_labels
+
+
+def _ohlc_rows(rows: list[dict]) -> pl.DataFrame:
+    """Build a minimal OHLC frame with an integer-index timestamp column."""
+    from datetime import UTC, datetime, timedelta
+
+    base = datetime(2024, 1, 1, tzinfo=UTC)
+    return pl.DataFrame([{"timestamp": base + timedelta(hours=i), **r} for i, r in enumerate(rows)])
+
+
+class TestTripleBarrierLabelsAtrCoherent:
+    """Tests for the barrier-coherent labeler (ATR + intrabar high/low).
+
+    Barrier semantics MUST match liq-sim/brackets.process_brackets so the
+    label and execution are by-construction coherent: TP when bar high >= TP,
+    SL when bar low <= SL, same-bar both => SL wins (adverse-path).
+    """
+
+    def _flat_atr_path(self, n: int = 7) -> pl.DataFrame:
+        # h=101, l=99 every row, close=100 => TR=2 every row => ATR=2 stable.
+        return _ohlc_rows(
+            [{"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0} for _ in range(n)]
+        )
+
+    def test_profit_hit_first_labels_one(self) -> None:
+        df = self._flat_atr_path(n=7)
+        # Entry at row 3 (ATR warmup ok with window=3); next bar hits TP=104 only.
+        df = df.with_columns(
+            pl.when(pl.col("timestamp") == df["timestamp"][4])
+            .then(105.0)
+            .otherwise(pl.col("high"))
+            .alias("high")
+        )
+        out = triple_barrier_labels_atr_coherent(
+            df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
+        )
+        assert out["label"][3] == 1
+        assert out["tb_sl_price"][3] == pytest.approx(98.0)
+        assert out["tb_tp_price"][3] == pytest.approx(104.0)
+        assert out["tb_atr"][3] == pytest.approx(2.0)
+
+    def test_stop_hit_first_labels_zero(self) -> None:
+        df = self._flat_atr_path(n=7)
+        # Next bar's low pierces SL=98; high stays inside.
+        df = df.with_columns(
+            pl.when(pl.col("timestamp") == df["timestamp"][4])
+            .then(97.0)
+            .otherwise(pl.col("low"))
+            .alias("low")
+        )
+        out = triple_barrier_labels_atr_coherent(
+            df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
+        )
+        assert out["label"][3] == 0
+
+    def test_same_bar_both_adverse_path_stop_wins(self) -> None:
+        df = self._flat_atr_path(n=7)
+        # Next bar high >= TP AND low <= SL => SL wins (mirrors liq-sim).
+        idx = 4
+        df = df.with_columns(
+            pl.when(pl.col("timestamp") == df["timestamp"][idx])
+            .then(105.0)
+            .otherwise(pl.col("high"))
+            .alias("high"),
+            pl.when(pl.col("timestamp") == df["timestamp"][idx])
+            .then(97.0)
+            .otherwise(pl.col("low"))
+            .alias("low"),
+        )
+        out = triple_barrier_labels_atr_coherent(
+            df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
+        )
+        assert out["label"][3] == 0
+
+    def test_timeout_labels_zero(self) -> None:
+        df = self._flat_atr_path(n=7)  # all bars stay inside [98,104]
+        out = triple_barrier_labels_atr_coherent(
+            df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
+        )
+        assert out["label"][3] == 0
+
+    def test_emits_label_sl_tp_atr_columns_and_preserves_rows(self) -> None:
+        df = self._flat_atr_path(n=10)
+        out = triple_barrier_labels_atr_coherent(
+            df, atr_window=3, profit_atr=2.0, stop_atr=1.0, max_holding=3
+        )
+        for col in ("label", "tb_sl_price", "tb_tp_price", "tb_atr"):
+            assert col in out.columns
+        assert out.height == df.height
+        assert set(out["label"].to_list()).issubset({0, 1})

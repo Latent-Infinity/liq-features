@@ -1,0 +1,12 @@
+Command:
+  uv run pytest -q tests/test_volatility_logging.py tests/test_volatility_quality.py tests/test_volatility_fallback.py tests/test_volatility_estimate.py tests/test_volatility_formulas.py tests/test_volatility_windowed.py tests/test_volatility_contract_xfail.py tests/test_volatility.py --cov=liq.features.volatility --cov-report=term-missing
+
+Result:
+  118 passed.
+
+Coverage:
+  src/liq/features/volatility/quality.py                 95%
+  src/liq/features/volatility/estimators/fallback.py    100%
+  src/liq/features/volatility/estimate.py                89%
+  src/liq/features/volatility/logging.py                 77%
+  src/liq/features/volatility package total              91%

@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.8, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/firestrand/Projects/latenty-infinity/quant/liq-features
+configfile: pyproject.toml
+plugins: anyio-4.12.1, hypothesis-6.151.9, liq-validation-0.1.2, cov-7.0.0
+collected 101 items
+
+tests/test_volatility_signature.py ......                                [  5%]
+tests/test_volatility_rv.py ...............                              [ 20%]
+tests/test_volatility_decomposition.py .........                         [ 29%]
+tests/test_volatility_logging.py .........                               [ 38%]
+tests/test_volatility_quality.py .................                       [ 55%]
+tests/test_volatility_fallback.py ................                       [ 71%]
+tests/test_volatility_estimate.py .....................                  [ 92%]
+tests/test_volatility_contract_xfail.py ........                         [100%]
+
+============================= 101 passed in 1.40s ==============================
