@@ -1,0 +1,18 @@
+# Phase F — liq-features changed files
+
+## Updated docs
+- docs/volatility.md  (status banner refreshed; production/degraded mode availability table added; full quality-flag vocabulary added; ATR migration pointer added; calendar worked example added; refinement-skipped note)
+- docs/logging.md  (MCS events split into 'Related' section pointing at liq.experiments.vol logger)
+
+## Updated README
+- README.md  (Volatility section added pointing at estimate_variance + docs surface)
+
+## Unchanged docs
+- docs/exceptions.md  (already complete)
+
+## Updated AGENT_STATE
+- AGENT_STATE.md  (Phase F row appended, ready-for-review)
+
+## Artifacts
+- artifacts/phase-F/changed-files.txt
+- artifacts/phase-F/decisions.md

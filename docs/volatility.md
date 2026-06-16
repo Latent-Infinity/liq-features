@@ -1,17 +1,19 @@
 # Canonical risk-variance estimator (`liq.features.volatility`)
 
-> **Status.** Contract types, exception hierarchy, public entry-point,
-> and the per-bar / windowed formula registry are in place;
-> `estimate_variance` dispatches on the spec and returns a
-> `VolEstimate` populated with `var_per_bar`, `vol_per_bar`, optional
-> annualized series, and the `cont` / `overnight_gap` components when
-> the spec targets close-to-close risk variance. PIT enforcement is
-> active. Data-quality / fallback / structured logging hookups land in
-> the hardening iteration. See
+> **Status.** Consolidated for production. The full surface is live:
+> contract types, exception hierarchy, formula registry (CtC,
+> Parkinson, Garman-Klass, Rogers-Satchell, GK-YZ, Yang-Zhang),
+> windowed estimators, PIT enforcement, data-quality + fallback chain,
+> structured logging (research plan §1.9), minute-mode RV / BPV / JV
+> + RV-noise gate (§5.3), estimator dispersion + derived quality flags
+> (§5.4), and the `volatility_signature` VolComponent. Selection
+> against the canonical real-data fixture bundle landed in
+> `liq-experiments`; the canonical estimator is **`gk_yang_zhang`**
+> (decisions registry §5 — MCS_B winner under Option B). See
 > [research plan](../../liq-docs/plans/liq-features-canonical-risk-variance-plan.md)
 > §3.4–3.6 + `[APPENDIX_FORMULAS]` for the load-bearing detail and the
-> [implementation plan](../../liq-docs/plans/liq-features-canonical-risk-variance-impl-plan.md)
-> for the per-iteration ledger.
+> [decisions registry](../../liq-docs/plans/liq-features-canonical-risk-variance-decisions.md)
+> for every frozen decision.
 
 ## Why this exists
 
@@ -44,11 +46,12 @@ from liq.features.volatility import (
 | Exception hierarchy | ✅ defined | impl plan foundation |
 | `estimate_variance(bars, spec, *, asof=None) -> VolEstimate` | ✅ implemented (CtC, Parkinson, GK, RS, GK-YZ, YZ; PIT enforcement; spec validation; annualization) | research plan §3.4 |
 | Formula registry (`ctc`, `parkinson`, `garman_klass`, `rogers_satchell`, `gk_yang_zhang`, `yang_zhang`) | ✅ implemented + golden-tested at 1e-12 (per-bar) / 1e-10 (windowed) | research plan `[APPENDIX_FORMULAS]` |
-| RV / BPV / minute-mode estimators | landing with the RV-noise gate | research plan §5.3 + `[APPENDIX_FORMULAS]` |
-| Data-quality enforcement + fallback chain | landing with `[DESIGN_DATA_QUALITY]` | research plan §4.2 + `[DESIGN_DATA_QUALITY]` |
-| Variance decomposition (`cont`, `overnight_gap`, `jump`, `intraday_range`) | YZ + close-to-close composes `cont` + `overnight_gap`; jump components land with minute mode | research plan `[DESIGN_DECOMPOSITION]` |
-| Refinement (`6A` arbitration, `6B` calibration) | conditional, gated | research plan `[PHASE25_REFINEMENT]` |
-| Mode availability (minute-enabled / degraded-fallback) | landing with data-quality | research plan §3.6 |
+| RV / BPV / minute-mode estimators + RV-noise gate | ✅ implemented in `liq.features.volatility.rv` | research plan §5.3 + `[APPENDIX_FORMULAS]` |
+| Data-quality enforcement + fallback chain | ✅ implemented in `liq.features.volatility.quality` + `estimators.fallback` | research plan §4.2 + `[DESIGN_DATA_QUALITY]` |
+| Variance decomposition (`cont`, `overnight_gap`, `jump`, `intraday_range`, `volatility_signature`) | ✅ implemented in `liq.features.volatility.decomposition` and `estimate.py` | research plan `[DESIGN_DECOMPOSITION]` + §5.3 |
+| Estimator dispersion + §5.4 quality-flag derivation | ✅ implemented | research plan §5.4 |
+| Refinement (`6A` arbitration, `6B` calibration) | SKIPPED — both triggers `trigger-not-fired` (decisions registry §6) | research plan `[PHASE25_REFINEMENT]` |
+| Mode availability (minute-enabled / degraded-fallback) | ✅ tracked per-component via `VolComponent.source` (see table below) | research plan §3.6 |
 
 ## Formula registry
 
@@ -203,6 +206,51 @@ from liq.features.volatility import yang_zhang, garman_klass
 These are retired once downstream consumers migrate to
 `estimate_variance` (research plan §13 + impl plan ATR bridge writeup).
 
+## Production / degraded-fallback mode availability
+
+Per research plan §3.6, every `VolComponent` carries a `source` field
+identifying the data path that produced it. The table below summarizes
+which components are available in each mode; a request for an
+`unavailable` component raises :class:`VolUnavailableError`.
+
+| Component | Production (minute-enabled) | Degraded-fallback (daily OHLC only) | `VolComponent.source` |
+| --- | --- | --- | --- |
+| `cont` (continuous intraday variance) | available | available (window-aggregated range estimator) | `derived` |
+| `overnight_gap` | available | available | `daily_ohlc` |
+| `jump` | available (`RV - BPV`) | unavailable | `minute_rv` |
+| `intraday_range` | available | available | `daily_ohlc` |
+| `volatility_signature` (per-bar RV) | available (passes `intra_bar_returns`) | unavailable | `minute_rv` |
+| `gap_var_per_closed_hour` diagnostic | available | available | `derived` |
+
+When degraded-fallback fires, structured-log events
+`estimator_fallback_applied` and (if a flag is set)
+`quality_flag_set` accompany the emitted estimate so consumers can
+detect the mode shift without inspecting the source field directly.
+
+## Full quality-flag vocabulary
+
+Per research plan §5.4 + `[DESIGN_DATA_QUALITY]`, the canonical flag
+set on `VolEstimate.quality_flags` (and per-bar via the
+`quality_flag_set` event) is:
+
+| Flag | When set | Source |
+| --- | --- | --- |
+| `HIGH_LOW_OUTLIER` | A bar's high/low fails the PIT outlier check against past-available neighbors | `quality.py` |
+| `MISSING_OPEN` | A bar's open is missing; YZ / RS fall back to Parkinson or CtC | `quality.py` |
+| `MISSING_PREV_CLOSE` | The prior close is missing; close-to-close and YZ overnight terms fall back | `quality.py` |
+| `HALTED_OR_ZERO_VOLUME` | Bar flagged as halted / zero-volume; treated per `VolQualityPolicy.halt_policy` | `quality.py` |
+| `PARTIAL_SESSION` | Calendar-aware annualization or exclusion engaged for a partial trading day | `calendar.py` |
+| `GAP_DOMINATED_VOL` | Parkinson low + CtC high (`ctc ≥ 4× parkinson`) — variance is dominated by the overnight gap | `decomposition.py` |
+| `INTRADAY_RANGE_DOMINATED_VOL` | RS high + CtC low (`rs ≥ 4× ctc`) — variance is dominated by intraday range | `decomposition.py` |
+| `HIGH_ESTIMATOR_DISAGREEMENT` | `estimator_dispersion > VolQualityPolicy.estimator_dispersion_threshold` | `decomposition.py` |
+| `CTC_DISAGREES_WITH_RANGE` | CtC and the range-mean differ by ≥ 4× in either direction | `decomposition.py` |
+| `NOISY_RV_TARGET` | The §5.3 RV-noise gate fired — `RV_1m` was rejected in favor of `RV_5m` / realized kernel | `rv.py` + `estimate.py` |
+
+Flags compose: a single bar may carry multiple flags at once. The
+`quality_flag_set` structured-log event is debounced per
+`(estimate_call, bar_index)` and carries the union of flags set on
+that bar.
+
 ## Calendar consumption
 
 The volatility decomposition uses `liq.data.calendar` for closed-market
@@ -211,3 +259,26 @@ gap classification — `closed_hours_between(c_prev, o)` and
 for the helpers; their outputs feed `gap_class_t`, `closed_hours_t`,
 and the per-closed-hour diagnostic on `VolEstimate.components` per
 research plan §3.1a.
+
+### Worked example — weeknight gap vs weekend gap
+
+A close on Friday at 16:00 ET → open on Monday at 09:30 ET spans
+roughly 65 closed-market hours (research plan §3.1a). A close on
+Tuesday at 16:00 ET → open on Wednesday at 09:30 ET spans roughly
+17.5 closed-market hours. Both gaps contribute to `risk_var_t` at
+their raw magnitudes (`VolCalendarPolicy.overnight_basis = "separate"`,
+the Phase-0 default). The `gap_class_t` field labels each gap as
+`weeknight` / `weekend` / `holiday`; the `gap_var_per_closed_hour_t`
+diagnostic divides the gap's squared log-return by `closed_hours_t`
+so consumers can compare gap magnitudes per unit of closed time
+without rescaling the canonical scalar.
+
+## ATR migration pointer
+
+The historical sizing path in `liq-risk` consumes ATR and `natr_t =
+ATR_t / close_t`. The canonical `risk_var_t` replaces both in the
+sizer; the head-to-head non-inferiority evidence (Gate 4 PASSED) lives
+in [`liq-risk/docs/atr-retirement.md`](../../liq-risk/docs/atr-retirement.md).
+The actual retirement of the ATR-based sizer is owned by a separate
+downstream-migration plan; this doc is the canonical-side anchor for
+that plan.

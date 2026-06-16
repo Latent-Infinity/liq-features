@@ -35,10 +35,23 @@ minute-diagnostic hooks.
 | `quality_flag_set` | A `quality_flag` was set on a bar. Debounced to one event per bar even when multiple flags fire (avoids duplication with the windowed log path). |
 | `data_quality_rejected` (ERROR) | A bar failed quality with no fallback eligible. Includes the rule that fired. |
 | `rv_noise_gate_fired` | The RV-noise gate (research plan §5.3) rejected `RV_1m` and fell back. Payload carries `rv_1m`, `rv_5m`, `rv_15m`, `price_movement`, and the resolved `target` (`rv_5m` / `realized_kernel`). |
-| `mcs_eliminated` | The Hansen-Lunde-Nason elimination step removed a candidate. |
-| `tie_break_applied` | The pre-registered `tie_break_order` decided between MCS members. |
-| `ablation_recalibration_proposed` | An ablation produced a `RecalibrationProposal` (research plan §10.2). |
-| `refinement_applied` | 6A arbitration or 6B calibration was applied (when adopted per `[PHASE25_REFINEMENT]`). |
+| `refinement_applied` | 6A arbitration or 6B calibration was applied (reserved; refinement SKIPPED in this plan per decisions registry §6 — see [`PHASE25_REFINEMENT`]). |
+
+## Related — MCS / ablation / tie-break events (different logger)
+
+Selection-side events from the leaderboard harness live on the
+**`liq.experiments.vol`** logger, not `liq.features.volatility`:
+
+| Event | Trigger / context | Logger |
+| --- | --- | --- |
+| `mcs_eliminated` | The Hansen-Lunde-Nason elimination step removed a candidate. | `liq.experiments.vol` |
+| `tie_break_applied` | The pre-registered `tie_break_order` decided between MCS members. | `liq.experiments.vol` |
+| `ablation_recalibration_proposed` | An ablation evaluator emitted a verdict / decision pair. | `liq.experiments.vol` |
+
+These events are opt-in: the experiments-side decision branches emit
+only when `correlation_id` + `spec_hash` are supplied. See
+[`liq-experiments/docs/volatility-leaderboards.md`](../../liq-experiments/docs/volatility-leaderboards.md)
+§5 for the per-event payload contract.
 
 ## Example records
 
