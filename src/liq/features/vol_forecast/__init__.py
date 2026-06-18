@@ -18,6 +18,17 @@ from .contracts import (
 )
 from .feature_dictionary import build_feature_dictionary_signature, forecast_feature_dictionary
 from .multiscale import MultiscaleVolFeatures, build_multiscale_features
+from .regime import (
+    GAP_DOMINATED_VOL,
+    INTRADAY_RANGE_DOMINATED_VOL,
+    JUMP_DAY,
+    AsymmetryRegressionResult,
+    SemivarianceEstimate,
+    compute_asymmetry_regression,
+    compute_semivariance,
+    derive_gap_jump_labels,
+    resolve_multi_label,
+)
 from .serving import (
     assert_feature_forecast_clock,
     assert_forecast_size_clock,
@@ -59,6 +70,15 @@ __all__ = [
     "build_target_rv_total",
     "MultiscaleVolFeatures",
     "build_multiscale_features",
+    "AsymmetryRegressionResult",
+    "GAP_DOMINATED_VOL",
+    "INTRADAY_RANGE_DOMINATED_VOL",
+    "JUMP_DAY",
+    "SemivarianceEstimate",
+    "compute_asymmetry_regression",
+    "compute_semivariance",
+    "derive_gap_jump_labels",
+    "resolve_multi_label",
     "BaselineEligibility",
     "UniverseMembership",
     "UNIVERSE_DEFINITION_ID",
