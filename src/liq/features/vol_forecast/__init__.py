@@ -36,7 +36,13 @@ from .serving import (
     assert_no_straddle,
     assert_sizing_order_clock,
 )
-from .targets import TargetRvTotal, build_target_rv_total
+from .targets import (
+    INTRADAY_REVERSAL_TARGET_DEFINITION,
+    IntradayReversalTarget,
+    TargetRvTotal,
+    build_intraday_reversal_target,
+    build_target_rv_total,
+)
 from .universes import (
     UNIVERSE_DEFINITION_ID,
     BaselineEligibility,
@@ -66,7 +72,10 @@ __all__ = [
     "assert_sizing_order_clock",
     "forecast_feature_dictionary",
     "build_feature_dictionary_signature",
+    "INTRADAY_REVERSAL_TARGET_DEFINITION",
+    "IntradayReversalTarget",
     "TargetRvTotal",
+    "build_intraday_reversal_target",
     "build_target_rv_total",
     "MultiscaleVolFeatures",
     "build_multiscale_features",

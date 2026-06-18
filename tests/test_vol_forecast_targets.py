@@ -6,7 +6,11 @@ from datetime import UTC, date, datetime, timedelta
 import polars as pl
 import pytest
 
-from liq.features.vol_forecast import build_target_rv_total
+from liq.features.vol_forecast import (
+    INTRADAY_REVERSAL_TARGET_DEFINITION,
+    build_intraday_reversal_target,
+    build_target_rv_total,
+)
 
 
 def _bars() -> pl.DataFrame:
@@ -56,3 +60,83 @@ def test_ca_adjacent_rows_are_reason_coded_and_not_promotion_eligible() -> None:
     assert not target.promotion_eligible
     assert [reason.code for reason in target.reason_codes] == ["CA_ADJACENT"]
     assert target.corporate_action_event_id == "split_a"
+
+
+def test_intraday_reversal_target_clips_at_next_close() -> None:
+    signal_ts = datetime(2024, 1, 3, 18, 30, tzinfo=UTC)
+    fill_ts = signal_ts + timedelta(seconds=30)
+    next_close = datetime(2024, 1, 3, 21, 0, tzinfo=UTC)
+    horizon = timedelta(hours=6)
+
+    target = build_intraday_reversal_target(
+        signal_id="aapl_2024_01_03_intraday_a",
+        symbol="AAPL",
+        signal_ts=signal_ts,
+        fill_ts=fill_ts,
+        horizon=horizon,
+        next_close_ts=next_close,
+    )
+
+    assert target.target_start_ts == fill_ts
+    assert target.target_end_ts == next_close
+    assert target.is_path_dependent is False
+    assert target.horizon == horizon
+    assert target.target_definition == INTRADAY_REVERSAL_TARGET_DEFINITION
+
+
+def test_intraday_reversal_target_short_horizon_keeps_horizon() -> None:
+    signal_ts = datetime(2024, 1, 3, 14, 45, tzinfo=UTC)
+    fill_ts = signal_ts + timedelta(seconds=5)
+    next_close = datetime(2024, 1, 3, 21, 0, tzinfo=UTC)
+    horizon = timedelta(minutes=30)
+
+    target = build_intraday_reversal_target(
+        signal_id="aapl_2024_01_03_intraday_b",
+        symbol="AAPL",
+        signal_ts=signal_ts,
+        fill_ts=fill_ts,
+        horizon=horizon,
+        next_close_ts=next_close,
+    )
+
+    assert target.target_end_ts == fill_ts + horizon
+    assert target.target_end_ts < next_close
+
+
+def test_intraday_reversal_target_rejects_negative_horizon() -> None:
+    signal_ts = datetime(2024, 1, 3, 14, 45, tzinfo=UTC)
+    with pytest.raises(ValueError, match="horizon must be positive"):
+        build_intraday_reversal_target(
+            signal_id="aapl_bad_horizon",
+            symbol="AAPL",
+            signal_ts=signal_ts,
+            fill_ts=signal_ts,
+            horizon=timedelta(seconds=-10),
+            next_close_ts=signal_ts + timedelta(hours=4),
+        )
+
+
+def test_intraday_reversal_target_rejects_fill_before_signal() -> None:
+    signal_ts = datetime(2024, 1, 3, 14, 45, tzinfo=UTC)
+    with pytest.raises(ValueError, match="fill_ts must not precede signal_ts"):
+        build_intraday_reversal_target(
+            signal_id="aapl_bad_fill",
+            symbol="AAPL",
+            signal_ts=signal_ts,
+            fill_ts=signal_ts - timedelta(seconds=1),
+            horizon=timedelta(minutes=30),
+            next_close_ts=signal_ts + timedelta(hours=4),
+        )
+
+
+def test_intraday_reversal_target_rejects_target_past_next_close_only_if_invariant() -> None:
+    signal_ts = datetime(2024, 1, 3, 14, 45, tzinfo=UTC)
+    with pytest.raises(ValueError, match="next_close_ts must follow fill_ts"):
+        build_intraday_reversal_target(
+            signal_id="aapl_bad_close",
+            symbol="AAPL",
+            signal_ts=signal_ts,
+            fill_ts=signal_ts + timedelta(seconds=10),
+            horizon=timedelta(minutes=30),
+            next_close_ts=signal_ts - timedelta(seconds=1),
+        )

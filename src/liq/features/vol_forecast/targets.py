@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import polars as pl
@@ -13,6 +13,7 @@ from .contracts import ReasonCode
 
 TARGET_DEFINITION = "target_rv_total"
 TARGET_CONSTRUCTION_VERSION = "target_rv_total_v1"
+INTRADAY_REVERSAL_TARGET_DEFINITION = "intraday_reversal_fixed_horizon_v1"
 
 
 @dataclass(frozen=True)
@@ -209,9 +210,81 @@ def build_target_rv_total(
     )
 
 
+@dataclass(frozen=True)
+class IntradayReversalTarget:
+    """FIXED-HORIZON intraday reversal target row.
+
+    The target is a leakage-safe time-horizon window: the model is trained to
+    forecast realized variance over ``[fill_ts, target_end_ts]`` where
+    ``target_end_ts = min(fill_ts + horizon, next_close)``. ``is_path_dependent``
+    is invariantly ``False``. REALIZED-EXIT labels live elsewhere and are
+    never folded into pure forecast-model comparisons.
+    """
+
+    signal_id: str
+    symbol: str
+    signal_ts: datetime
+    fill_ts: datetime
+    target_start_ts: datetime
+    target_end_ts: datetime
+    horizon: timedelta
+    next_close_ts: datetime
+    is_path_dependent: bool
+    target_definition: str
+    target_construction_version: str
+    reason_codes: tuple[ReasonCode, ...]
+
+
+def build_intraday_reversal_target(
+    *,
+    signal_id: str,
+    symbol: str,
+    signal_ts: datetime,
+    fill_ts: datetime,
+    horizon: timedelta,
+    next_close_ts: datetime,
+    reason_codes: tuple[ReasonCode, ...] = (),
+) -> IntradayReversalTarget:
+    """Construct a FIXED-HORIZON intraday reversal target row.
+
+    Enforces the intraday target invariants:
+
+    - ``fill_ts >= signal_ts`` (target starts at fill, sized post-execution).
+    - ``horizon`` strictly positive.
+    - ``target_end_ts = min(fill_ts + horizon, next_close_ts)``: never past
+      next close, so the row is leakage-safe.
+    - ``is_path_dependent`` is invariantly ``False``.
+    """
+
+    if fill_ts < signal_ts:
+        raise ValueError("fill_ts must not precede signal_ts")
+    if horizon.total_seconds() <= 0:
+        raise ValueError("horizon must be positive")
+    if next_close_ts <= fill_ts:
+        raise ValueError("next_close_ts must follow fill_ts")
+    target_end_ts = min(fill_ts + horizon, next_close_ts)
+    return IntradayReversalTarget(
+        signal_id=signal_id,
+        symbol=symbol,
+        signal_ts=signal_ts,
+        fill_ts=fill_ts,
+        target_start_ts=fill_ts,
+        target_end_ts=target_end_ts,
+        horizon=horizon,
+        next_close_ts=next_close_ts,
+        is_path_dependent=False,
+        target_definition=INTRADAY_REVERSAL_TARGET_DEFINITION,
+        target_construction_version=INTRADAY_REVERSAL_TARGET_DEFINITION,
+        reason_codes=reason_codes,
+    )
+
+
 __all__ = [
+    "INTRADAY_REVERSAL_TARGET_DEFINITION",
+    "IntradayReversalTarget",
     "TARGET_CONSTRUCTION_VERSION",
     "TARGET_DEFINITION",
     "TargetRvTotal",
+    "build_intraday_reversal_target",
     "build_target_rv_total",
 ]
