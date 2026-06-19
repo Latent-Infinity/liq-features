@@ -135,7 +135,7 @@ forecast_feature_dictionary: FeatureDictionary = {
 def build_feature_dictionary_signature() -> str:
     """Return SHA256 over canonical JSON serialization.
 
-    This hash is used by the F0 contracts freeze artifact so
+    This hash is the canonical fingerprint of the feature dictionary so
     downstream pipelines can detect dictionary-level drift.
     """
 

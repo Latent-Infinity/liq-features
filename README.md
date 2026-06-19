@@ -15,7 +15,52 @@ the MCS_B winner under Option B (see decisions registry §5).
 - Contract + formula reference: [`docs/volatility.md`](docs/volatility.md)
 - Exception hierarchy: [`docs/exceptions.md`](docs/exceptions.md)
 - Structured-log catalog: [`docs/logging.md`](docs/logging.md)
-- ATR migration: [`liq-risk/docs/atr-retirement.md`](../liq-risk/docs/atr-retirement.md)
+
+## Volatility forecast features (`liq.features.vol_forecast`)
+
+The forecast/regime feature layer that consumes `risk_var_t` and exposes
+frozen feature contracts, regime labels, and target builders. Each export
+below is frozen for production: contracts ship with `feature_dictionary_id`,
+the regime labels use canonical research-plan names, and the target
+builders enforce the serving-clock invariants (no straddle, `availability_ts
+<= forecast_origin_ts`, `target_end_ts <= next_close_ts` for the intraday
+reversal target).
+
+| Surface | Capability |
+| --- | --- |
+| `VolForecastFeatures`, `ForecastTarget`, `feature_dictionary_id` | Frozen feature-row + target contracts. `availability_ts` and `valid_from` are load-bearing — they enter the structured-log records every feature row must carry, and downstream leakage checks read them by attribute. |
+| `build_target_rv_total` | Realized-variance target with row-level provenance + corporate-action adjacency reason coding (`CA_ADJACENT`). |
+| `build_intraday_reversal_target` | FIXED-HORIZON intraday reversal target: `target_end_ts = min(fill_ts + horizon, next_close_ts)`, `is_path_dependent=False`. |
+| `build_multiscale_features` | Daily / weekly / monthly RV + slope + log-space features with explicit coverage metadata. |
+| `compute_semivariance`, `compute_asymmetry_regression` | Long / short semivariance windows; rolling asymmetry regression (b3 coefficient). |
+| `derive_gap_jump_labels`, `resolve_multi_label` | Canonical regime labels — `GAP_DOMINATED_VOL`, `INTRADAY_RANGE_DOMINATED_VOL`, `JUMP_DAY` — with parameterized thresholds (frozen in the parameter registry at gap=0.60, range=0.40, jump=0.10). Multi-label resolution combines conservatism labels by MAX-multiplier, not product. |
+| `compute_universe_membership` | Per-symbol assignment into `common-eligible` / `production-coverage` / `limited-history` universes. |
+
+```python
+from datetime import UTC, datetime, timedelta
+
+from liq.features.vol_forecast import (
+    GAP_DOMINATED_VOL,
+    build_intraday_reversal_target,
+    derive_gap_jump_labels,
+)
+
+target = build_intraday_reversal_target(
+    signal_id="aapl_2024_03_15_intraday_a",
+    symbol="AAPL",
+    signal_ts=datetime(2024, 3, 15, 18, 30, tzinfo=UTC),
+    fill_ts=datetime(2024, 3, 15, 18, 31, tzinfo=UTC),
+    horizon=timedelta(minutes=60),
+    next_close_ts=datetime(2024, 3, 15, 20, 0, tzinfo=UTC),
+)
+assert target.is_path_dependent is False
+
+labels = derive_gap_jump_labels(
+    {"overnight_gap_var": 0.006, "intraday_range_var": 0.003, "jump_var": 0.001, "total_var": 0.01},
+    threshold_gap=0.60, threshold_range=0.40, threshold_jump=0.10,
+)
+assert GAP_DOMINATED_VOL in labels
+```
 
 ## Installation
 

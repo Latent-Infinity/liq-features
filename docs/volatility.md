@@ -6,10 +6,10 @@
 > windowed estimators, PIT enforcement, data-quality + fallback chain,
 > structured logging (research plan §1.9), minute-mode RV / BPV / JV
 > + RV-noise gate (§5.3), estimator dispersion + derived quality flags
-> (§5.4), and the `volatility_signature` VolComponent. Selection
-> against the canonical real-data fixture bundle landed in
-> `liq-experiments`; the canonical estimator is **`gk_yang_zhang`**
-> (decisions registry §5 — MCS_B winner under Option B). See
+> (§5.4), and the `volatility_signature` VolComponent. The canonical
+> estimator is **`gk_yang_zhang`** (decisions registry §5 — MCS_B
+> winner under Option B; selection evidence is recorded in the
+> decisions registry). See
 > [research plan](../../liq-docs/plans/liq-features-canonical-risk-variance-plan.md)
 > §3.4–3.6 + `[APPENDIX_FORMULAS]` for the load-bearing detail and the
 > [decisions registry](../../liq-docs/plans/liq-features-canonical-risk-variance-decisions.md)
@@ -19,7 +19,7 @@
 
 A single point-in-time trailing risk-variance estimator that replaces
 the ad-hoc range / ATR / rolling-vol paths previously scattered across
-`liq-features`, `liq-risk`, and `liq-sim`. The canonical scalar is
+the feature, sizing, and simulation surfaces. The canonical scalar is
 **close-to-close risk variance** (`risk_var_t`), stored under the
 generic name `var_t`; `vol_t = sqrt(var_t)` is a derived convenience.
 
@@ -89,10 +89,10 @@ The windowed layer in `estimators.windowed` exposes:
 - `yang_zhang_var(overnight_terms, open_close_terms, rs_terms, *, window, min_periods)`
   — composes `mean(overnight) + k_yz * mean(open_close) + (1 - k_yz) * mean(rs)`.
 
-Reference values for the registry are computed in
-`liq-validation`'s `golden_fixtures` at 50-digit `Decimal` precision
-and stored as JSON in `liq-validation/tests/fixtures/volatility/`. The
-contract tests in `liq-features/tests/test_volatility_formulas.py` and
+Reference values for the registry are computed at 50-digit `Decimal`
+precision and shipped as JSON golden fixtures consumed by this repo's
+contract tests. The contract tests in
+`tests/test_volatility_formulas.py` and
 `tests/test_volatility_windowed.py` pin every estimator to those
 reference values at the tolerances called out in §10.1 of the research
 plan. The operator can spot-check the registry after a formula edit
@@ -113,11 +113,10 @@ Implementations of research plan §5.3 ship in `liq.features.volatility.rv`.
 
 The Barndorff-Nielsen / Shephard decomposition `RV = BPV + JV` holds
 *exactly* whenever `JV > 0`; the `max` clip in `compute_jv` keeps the
-jump component non-negative in finite samples. Tested in
-`tests/test_volatility_rv.py` (per-bar) and
-`liq-experiments/tests/vol/test_bpv_jv_jump_isolation.py`
-(integration — single-jump injection isolates to JV while BPV stays
-near the continuous floor).
+jump component non-negative in finite samples. Per-bar behavior is
+covered by `tests/test_volatility_rv.py`; integration-level
+single-jump injection (jump isolates to JV while BPV stays near the
+continuous floor) is owned by the downstream experiments harness.
 
 ### RV-noise gate
 
@@ -133,14 +132,10 @@ The gate fires when both of the following hold:
 When the gate fires, the caller falls back to `RV_5m` (or a realized
 kernel) and adds `NOISY_RV_TARGET` to the bar's quality flags.
 
-A canonical worked example lives in
-`liq-experiments/scripts/eval_simulation_minute.py`; the acceptance
-criterion is
-
-```bash
-uv run python scripts/eval_simulation_minute.py --noise micro --output json \
-    | jq '.gate_fired'
-```
+The gate is end-to-end exercised by the downstream simulation harness
+under a microstructure-noise injection; its acceptance criterion is
+that `gate_fired` is `true` on the noisy run and `false` on the clean
+run.
 
 returning `true`. The companion `--noise none` run leaves the gate
 down.
@@ -273,12 +268,12 @@ diagnostic divides the gap's squared log-return by `closed_hours_t`
 so consumers can compare gap magnitudes per unit of closed time
 without rescaling the canonical scalar.
 
-## ATR migration pointer
+## Canonical `risk_var_t` as the sizing-input replacement
 
-The historical sizing path in `liq-risk` consumes ATR and `natr_t =
-ATR_t / close_t`. The canonical `risk_var_t` replaces both in the
-sizer; the head-to-head non-inferiority evidence (Gate 4 PASSED) lives
-in [`liq-risk/docs/atr-retirement.md`](../../liq-risk/docs/atr-retirement.md).
-The actual retirement of the ATR-based sizer is owned by a separate
-downstream-migration plan; this doc is the canonical-side anchor for
-that plan.
+The canonical `risk_var_t` (and its derived `vol_t = sqrt(var_t)`) is the
+sizing-input replacement for legacy ATR-based scalars (`ATR_t`,
+`natr_t = ATR_t / close_t`). Head-to-head non-inferiority evidence on the
+Gate 4 panel is recorded in this repo's volatility artifacts; consumers
+that previously read ATR-derived inputs migrate to `estimate_variance(...)`
+without rescaling the canonical scalar. The retirement of any specific
+downstream ATR consumer is owned by that consumer's own migration plan.

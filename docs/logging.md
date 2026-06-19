@@ -48,10 +48,10 @@ Selection-side events from the leaderboard harness live on the
 | `tie_break_applied` | The pre-registered `tie_break_order` decided between MCS members. | `liq.experiments.vol` |
 | `ablation_recalibration_proposed` | An ablation evaluator emitted a verdict / decision pair. | `liq.experiments.vol` |
 
-These events are opt-in: the experiments-side decision branches emit
-only when `correlation_id` + `spec_hash` are supplied. See
-[`liq-experiments/docs/volatility-leaderboards.md`](../../liq-experiments/docs/volatility-leaderboards.md)
-§5 for the per-event payload contract.
+These events are opt-in: the decision branches on the `liq.experiments.vol`
+logger emit only when `correlation_id` + `spec_hash` are supplied. The
+per-event payload contract is owned by the downstream experiments
+harness that performs the elimination / tie-break / ablation decision.
 
 ## Example records
 

@@ -1,6 +1,6 @@
 """Forecast contracts consumed by the volatility forecast workstream.
 
-This module contains only F0 contract surfaces. Runtime feature
+This module contains only frozen contract surfaces. Runtime feature
 engineering and model objects are intentionally not implemented here.
 """
 

@@ -253,5 +253,4 @@ An optional index tracks all cache entries for efficient querying:
 
 ## See Also
 
-- [Cache Management Guide](../../liq-experiments/docs/cache-management-guide.md) (planned)
 - [Performance Guidelines](../../liq-docs/guides/performance-guidelines.md)
