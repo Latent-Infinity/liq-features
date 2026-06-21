@@ -634,7 +634,7 @@ class IndicatorCache:
     def __enter__(self) -> IndicatorCache:
         return self.lockless_index(rebuild_on_exit=True)
 
-    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+    def __exit__(self, _exc_type: object, exc: object, _tb: object) -> None:
         prev = self._lockless_prev if self._lockless_prev is not None else True
         rebuild = self._lockless_rebuild
         self._lockless_prev = None

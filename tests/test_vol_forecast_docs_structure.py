@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 _DOC_PATH = Path(__file__).parent.parent / "docs" / "vol-forecast.md"
 _REQUIRED_HEADERS = (
     "# Volatility forecast features",

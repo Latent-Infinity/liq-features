@@ -30,16 +30,20 @@ def align_higher_timeframe(
     join_by = "symbol" if "symbol" in base_df.columns and "symbol" in higher_df.columns else None
     base_sorted = _sort_for_asof(base_df, timestamp_col, join_by)
     higher_sorted = _sort_for_asof(higher_df, timestamp_col, join_by)
-    join_asof_kwargs: dict[str, object] = {
-        "left_on": timestamp_col,
-        "right_on": timestamp_col,
-        "strategy": "backward",
-    }
     if join_by is not None:
-        join_asof_kwargs["by"] = "symbol"
-    # For now, use completed higher bars without look-ahead; shift reserved for future bar-staleness if needed.
-    aligned = base_sorted.join_asof(higher_sorted, **join_asof_kwargs)
-    return aligned
+        return base_sorted.join_asof(
+            higher_sorted,
+            left_on=timestamp_col,
+            right_on=timestamp_col,
+            strategy="backward",
+            by="symbol",
+        )
+    return base_sorted.join_asof(
+        higher_sorted,
+        left_on=timestamp_col,
+        right_on=timestamp_col,
+        strategy="backward",
+    )
 
 
 def align_feature_frame(
@@ -72,11 +76,17 @@ def align_feature_frame(
             {column: f"{prefix}{column}" for column in feature_columns}
         )
 
+    if join_by is not None:
+        return base_sorted.join_asof(
+            aligned_features,
+            on=timestamp_col,
+            strategy="backward",
+            by=join_by,
+        )
     return base_sorted.join_asof(
         aligned_features,
         on=timestamp_col,
         strategy="backward",
-        **({"by": join_by} if join_by else {}),
     )
 
 

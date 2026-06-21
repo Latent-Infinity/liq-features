@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Self
+from typing import Any, Literal, Self, cast
 
 import polars as pl
 import pytest
@@ -189,9 +189,9 @@ def test_regime_output_accepts_label_keyed_probabilities() -> None:
 
 def test_regime_output_coerces_valid_label_strings_and_probability_keys() -> None:
     output = RegimeOutput(
-        label="trend",
+        label=cast(Any, "trend"),
         cluster_id=2,
-        probabilities={"range": 0.2, "neutral": 0.3, "trend": 0.5},
+        probabilities=cast(Any, {"range": 0.2, "neutral": 0.3, "trend": 0.5}),
         confidence=0.5,
     )
 
@@ -206,7 +206,7 @@ def test_regime_output_coerces_valid_label_strings_and_probability_keys() -> Non
 @pytest.mark.parametrize(
     ("factory", "match"),
     [
-        (lambda: RegimeOutput(label="invalid", cluster_id=0), "invalid"),
+        (lambda: RegimeOutput(label=cast(Any, "invalid"), cluster_id=0), "invalid"),
         (lambda: RegimeOutput(label=RegimeId.trend, cluster_id=-1), "cluster_id"),
         (lambda: RegimeOutput(label=RegimeId.trend, cluster_id=0, probabilities={}), "non-empty"),
         (

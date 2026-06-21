@@ -42,7 +42,8 @@ class RegimeLabeler(Protocol):
 
     def fit(self, classifier: RegimeClassifier, features: pl.DataFrame) -> Self:
         """Derive a deterministic cluster-to-label mapping."""
-        ...
+        _ = classifier, features
+        raise NotImplementedError
 
     def label(self, cluster_ids: pl.Series) -> pl.Series:
         """Map integer cluster IDs to RegimeId string values."""

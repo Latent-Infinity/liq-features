@@ -1,7 +1,7 @@
 """Tests for batch indicator orchestration helpers."""
 
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 import polars as pl
 
@@ -100,7 +100,7 @@ class _StatsStorage:
 
 
 def test_cache_stats_summarizes_indicator_entries_and_read_failures() -> None:
-    stats = batch.cache_stats(_StatsStorage())
+    stats = batch.cache_stats(cast(Any, _StatsStorage()))
 
     rows = {row["indicator"]: row for row in stats.to_dicts()}
     assert rows["rsi"]["timeframe"] == "1h"
@@ -141,7 +141,7 @@ def test_cache_stats_empty_storage_has_stable_schema() -> None:
             del key
             return None
 
-    stats = batch.cache_stats(EmptyStorage())
+    stats = batch.cache_stats(cast(Any, EmptyStorage()))
 
     assert stats.is_empty()
     assert stats.schema == {

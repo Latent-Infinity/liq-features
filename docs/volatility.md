@@ -262,7 +262,7 @@ roughly 65 closed-market hours (research plan §3.1a). A close on
 Tuesday at 16:00 ET → open on Wednesday at 09:30 ET spans roughly
 17.5 closed-market hours. Both gaps contribute to `risk_var_t` at
 their raw magnitudes (`VolCalendarPolicy.overnight_basis = "separate"`,
-the Phase-0 default). The `gap_class_t` field labels each gap as
+the initial default). The `gap_class_t` field labels each gap as
 `weeknight` / `weekend` / `holiday`; the `gap_var_per_closed_hour_t`
 diagnostic divides the gap's squared log-return by `closed_hours_t`
 so consumers can compare gap magnitudes per unit of closed time

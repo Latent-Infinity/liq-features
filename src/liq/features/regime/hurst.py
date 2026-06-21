@@ -125,11 +125,9 @@ class RegimeClassifier(Protocol):
 class EmbeddingEncoder(Protocol):
     """Encoder used by JEPA bootstrap."""
 
-    def fit(self, features: pl.DataFrame) -> Self:
-        ...
+    def fit(self, features: pl.DataFrame) -> Self: ...
 
-    def encode_for_clustering(self, features: pl.DataFrame) -> np.ndarray:
-        ...
+    def encode_for_clustering(self, features: pl.DataFrame) -> np.ndarray: ...
 
 
 class ClusterBootstrap(Protocol):
@@ -137,8 +135,7 @@ class ClusterBootstrap(Protocol):
 
     name: str
 
-    def fit(self, features: pl.DataFrame, *, n_regimes: int, random_state: int) -> pl.Series:
-        ...
+    def fit(self, features: pl.DataFrame, *, n_regimes: int, random_state: int) -> pl.Series: ...
 
 
 @dataclass
@@ -245,7 +242,9 @@ class SVMRegimeClassifier:
         self._model = _NearestCentroidModel(np.asarray(centroids, dtype=np.float64), self.n_regimes)
         if self.strict_cluster_sizes and train.shape[0] > 0:
             counts = Counter(int(value) for value in fitted_labels)
-            missing = {cluster_id for cluster_id in range(self.n_regimes) if counts.get(cluster_id, 0) == 0}
+            missing = {
+                cluster_id for cluster_id in range(self.n_regimes) if counts.get(cluster_id, 0) == 0
+            }
             if missing:
                 raise ValueError("strict_cluster_sizes requires all clusters to be represented")
         return self
@@ -297,7 +296,9 @@ class KMeansBootstrap:
     name: str = "kmeans"
 
     def fit(self, features: pl.DataFrame, *, n_regimes: int, random_state: int) -> pl.Series:
-        labels = _kmeans_labels(_to_float_matrix(features), n_regimes=n_regimes, random_state=random_state)
+        labels = _kmeans_labels(
+            _to_float_matrix(features), n_regimes=n_regimes, random_state=random_state
+        )
         return pl.Series("cluster_id", labels.astype(np.int64))
 
 
@@ -353,7 +354,8 @@ class TemporalEncoderBootstrap:
             return pl.Series("cluster_id", [])
         shifted = np.roll(matrix, 1, axis=1) if matrix.shape[1] > 1 else matrix
         return pl.Series(
-            "cluster_id", _kmeans_labels(shifted, n_regimes=n_regimes, random_state=random_state).tolist()
+            "cluster_id",
+            _kmeans_labels(shifted, n_regimes=n_regimes, random_state=random_state).tolist(),
         )
 
 
@@ -369,7 +371,8 @@ class SwAVPrototypeBootstrap:
             return pl.Series("cluster_id", [])
         quantized = np.round(matrix).astype(np.float64)
         return pl.Series(
-            "cluster_id", _kmeans_labels(quantized, n_regimes=n_regimes, random_state=random_state).tolist()
+            "cluster_id",
+            _kmeans_labels(quantized, n_regimes=n_regimes, random_state=random_state).tolist(),
         )
 
 
@@ -391,7 +394,10 @@ class JEPAEmbeddingBootstrap:
             if not isinstance(encoded, np.ndarray):
                 encoded = np.asarray(encoded)
         return pl.Series(
-            "cluster_id", _kmeans_labels(encoded.astype(np.float64), n_regimes=n_regimes, random_state=random_state)
+            "cluster_id",
+            _kmeans_labels(
+                encoded.astype(np.float64), n_regimes=n_regimes, random_state=random_state
+            ),
         )
 
 
@@ -420,7 +426,9 @@ def hurst_exponent(series: Sequence[float | int]) -> float:
     return float(np.mean(rs))
 
 
-def _resolve_expected_labels(expected_labels: tuple[str, ...], labels: pl.Series) -> tuple[str, ...]:
+def _resolve_expected_labels(
+    expected_labels: tuple[str, ...], labels: pl.Series
+) -> tuple[str, ...]:
     if expected_labels:
         return expected_labels
     return tuple(str(value) for value in sorted({str(value) for value in labels.unique()}))
@@ -479,8 +487,14 @@ def cluster_quality(
             sampled_matrix = matrix
             sampled_labels = cluster_ids
 
-        if silhouette_score is None or davies_bouldin_score is None or calinski_harabasz_score is None:
-            raise _SklearnUnavailable("silhouette_score unavailable because scikit-learn is not installed")
+        if (
+            silhouette_score is None
+            or davies_bouldin_score is None
+            or calinski_harabasz_score is None
+        ):
+            raise _SklearnUnavailable(
+                "silhouette_score unavailable because scikit-learn is not installed"
+            )
 
         return ClusterQuality(
             silhouette=float(silhouette_score(sampled_matrix, sampled_labels)),
@@ -505,14 +519,15 @@ def cross_seed_stability(label_sets: Iterable[pl.Series]) -> float:
     if len(series) < 2:
         return 1.0
     if adjusted_rand_score is None:
-        raise _SklearnUnavailable("adjusted_rand_score unavailable because scikit-learn is not installed")
+        raise _SklearnUnavailable(
+            "adjusted_rand_score unavailable because scikit-learn is not installed"
+        )
     if any(item.len() == 0 for item in series):
         return 0.0
 
     values = [item.to_numpy(allow_copy=True).astype(np.int64).ravel() for item in series]
     pair_scores = [
-        float(adjusted_rand_score(left, right))
-        for left, right in combinations(values, 2)
+        float(adjusted_rand_score(left, right)) for left, right in combinations(values, 2)
     ]
     return float(np.mean(pair_scores))
 

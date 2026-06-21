@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any, cast
 
 import numpy as np
 
@@ -91,13 +92,17 @@ def compute_asymmetry_regression(returns: Sequence[float]) -> AsymmetryRegressio
 
 
 def _estimate_value(estimate: Mapping[str, float] | object, key: str) -> float:
-    value = estimate.get(key, 0.0) if isinstance(estimate, Mapping) else getattr(estimate, key, 0.0)
+    value = (
+        cast(Mapping[str, Any], estimate).get(key, 0.0)
+        if isinstance(estimate, Mapping)
+        else getattr(estimate, key, 0.0)
+    )
     return float(value)
 
 
 def _estimate_flag(estimate: Mapping[str, object] | object, key: str) -> bool:
     if isinstance(estimate, Mapping):
-        return bool(estimate.get(key, False))
+        return bool(cast(Mapping[str, Any], estimate).get(key, False))
     return bool(getattr(estimate, key, False))
 
 

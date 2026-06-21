@@ -55,9 +55,9 @@ def build_quote_features(df: pl.DataFrame) -> pl.DataFrame:
         )
         .with_columns(
             [
-                _safe_ratio(
-                    pl.col("quoted_spread") * 10000.0, pl.col("quote_mid"), 0.0
-                ).alias("quoted_spread_bps"),
+                _safe_ratio(pl.col("quoted_spread") * 10000.0, pl.col("quote_mid"), 0.0).alias(
+                    "quoted_spread_bps"
+                ),
                 _safe_ratio(
                     pl.col("quote_mid") - _lag(pl.col("quote_mid"), df),
                     _lag(pl.col("quote_mid"), df),
@@ -88,7 +88,9 @@ def build_quote_features(df: pl.DataFrame) -> pl.DataFrame:
             ]
         )
     else:
-        out = out.with_columns([pl.lit(0.0).alias("quote_imbalance"), pl.col("quote_mid").alias("microprice")])
+        out = out.with_columns(
+            [pl.lit(0.0).alias("quote_imbalance"), pl.col("quote_mid").alias("microprice")]
+        )
 
     out = out.with_columns(
         (
@@ -114,7 +116,13 @@ def build_trade_bar_features(df: pl.DataFrame, *, every: str = "1h") -> pl.DataF
         raise ValueError("Missing required columns")
 
     side = pl.col("side")
-    signed_quantity = pl.when(side == "buy").then(pl.col("quantity")).when(side == "sell").then(-pl.col("quantity")).otherwise(0.0)
+    signed_quantity = (
+        pl.when(side == "buy")
+        .then(pl.col("quantity"))
+        .when(side == "sell")
+        .then(-pl.col("quantity"))
+        .otherwise(0.0)
+    )
 
     traded = df.with_columns(
         [
@@ -137,7 +145,9 @@ def build_trade_bar_features(df: pl.DataFrame, *, every: str = "1h") -> pl.DataF
         .with_columns(
             [
                 _safe_ratio(pl.col("notional"), pl.col("trade_volume")).alias("trade_vwap"),
-                _safe_ratio(pl.col("trade_signed_volume"), pl.col("trade_volume")).alias("trade_imbalance"),
+                _safe_ratio(pl.col("trade_signed_volume"), pl.col("trade_volume")).alias(
+                    "trade_imbalance"
+                ),
                 pl.lit(0).alias("quote_count"),
             ]
         )
@@ -225,12 +235,16 @@ def build_funding_features(df: pl.DataFrame) -> pl.DataFrame:
             .then(-1)
             .otherwise(0)
             .alias("funding_direction"),
-            _safe_ratio(pl.col("funding_rate") - _lag(pl.col("funding_rate"), df), pl.col("funding_rate"), 0.0).alias(
-                "funding_rate_change"
-            ),
-            _safe_ratio(pl.col("mark_price") - _lag(pl.col("mark_price"), df), _lag(pl.col("mark_price"), df), 0.0).alias(
-                "mark_price_return"
-            ),
+            _safe_ratio(
+                pl.col("funding_rate") - _lag(pl.col("funding_rate"), df),
+                pl.col("funding_rate"),
+                0.0,
+            ).alias("funding_rate_change"),
+            _safe_ratio(
+                pl.col("mark_price") - _lag(pl.col("mark_price"), df),
+                _lag(pl.col("mark_price"), df),
+                0.0,
+            ).alias("mark_price_return"),
         ]
     )
 
@@ -256,17 +270,27 @@ def build_open_interest_features(df: pl.DataFrame) -> pl.DataFrame:
             (pl.col("open_interest") - _lag(pl.col("open_interest"), df)).alias(
                 "open_interest_change"
             ),
-            _safe_ratio(pl.col("open_interest") - _lag(pl.col("open_interest"), df), _lag(pl.col("open_interest"), df), 0.0).alias(
-                "open_interest_pct_change"
-            ),
+            _safe_ratio(
+                pl.col("open_interest") - _lag(pl.col("open_interest"), df),
+                _lag(pl.col("open_interest"), df),
+                0.0,
+            ).alias("open_interest_pct_change"),
             _safe_ratio(
                 pl.col("open_interest_value") - _lag(pl.col("open_interest_value"), df),
                 _lag(pl.col("open_interest_value"), df),
                 0.0,
             ).alias("open_interest_value_pct_change"),
-            _safe_ratio(pl.col("open_interest"), pl.col("circulating_supply"), 0.0).alias("oi_to_supply"),
+            _safe_ratio(pl.col("open_interest"), pl.col("circulating_supply"), 0.0).alias(
+                "oi_to_supply"
+            ),
         ]
     )
 
-    out = out.with_columns([pl.col("open_interest_change").fill_null(0.0), pl.col("open_interest_pct_change").fill_null(0.0), pl.col("open_interest_value_pct_change").fill_null(0.0)])
+    out = out.with_columns(
+        [
+            pl.col("open_interest_change").fill_null(0.0),
+            pl.col("open_interest_pct_change").fill_null(0.0),
+            pl.col("open_interest_value_pct_change").fill_null(0.0),
+        ]
+    )
     return out

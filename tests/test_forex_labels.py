@@ -59,5 +59,7 @@ def test_make_forex_labels_uses_atr_threshold_when_spread_column_absent() -> Non
     out = make_forex_labels(_sample_df(20), horizon_bars=1, atr_window=3, threshold_k=0.0)
 
     assert out.height == 17
-    assert out["threshold"].min() >= 0
+    threshold_min = out["threshold"].cast(pl.Float64).min()
+    assert isinstance(threshold_min, float)
+    assert threshold_min >= 0.0
     assert set(out["label"].unique().to_list()) <= {0, 1, 2}

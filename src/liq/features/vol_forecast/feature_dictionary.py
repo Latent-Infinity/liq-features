@@ -144,9 +144,7 @@ def build_feature_dictionary_signature() -> str:
         "feature_dictionary_version": FEATURE_DICTIONARY_VERSION,
         "entries": forecast_feature_dictionary,
     }
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
-        "utf-8"
-    )
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return sha256(encoded).hexdigest()
 
 
@@ -154,4 +152,3 @@ __all__ = [
     "forecast_feature_dictionary",
     "build_feature_dictionary_signature",
 ]
-

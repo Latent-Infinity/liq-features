@@ -4,6 +4,7 @@ import tempfile
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from typing import Any, cast
 
 import polars as pl
 import pytest
@@ -1099,7 +1100,7 @@ class TestIndicatorCacheFailureBranches:
                 del key
                 return None
 
-        cache = IndicatorCache(storage=EmptyReadStorage())
+        cache = IndicatorCache(storage=cast(Any, EmptyReadStorage()))
         assert cache.storage_root is None
         assert cache.get("BTC_USDT/indicators/rsi/hash:1h:data") is None
 
@@ -1144,7 +1145,7 @@ class TestIndicatorCacheFailureBranches:
                 del key
                 return None
 
-        cache = IndicatorCache(storage=FailingStorage())
+        cache = IndicatorCache(storage=cast(Any, FailingStorage()))
 
         assert cache.storage_root == tmp_path
         assert cache.stats() == {"entries": 2, "total_size_bytes": 0}

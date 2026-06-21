@@ -100,7 +100,12 @@ def test_gap_jump_labels_estimator_flag_forces_jump_day() -> None:
 def test_gap_jump_labels_thresholds_must_be_in_unit_interval() -> None:
     with pytest.raises(ValueError, match="threshold_gap"):
         derive_gap_jump_labels(
-            {"overnight_gap_var": 0.0, "intraday_range_var": 0.0, "jump_var": 0.0, "total_var": 1.0},
+            {
+                "overnight_gap_var": 0.0,
+                "intraday_range_var": 0.0,
+                "jump_var": 0.0,
+                "total_var": 1.0,
+            },
             threshold_gap=-0.1,
             threshold_range=0.5,
             threshold_jump=0.5,

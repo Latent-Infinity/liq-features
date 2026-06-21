@@ -30,9 +30,7 @@ def assert_forecast_target_clock(*, forecast: ForecastTarget) -> None:
     assert forecast.forecast_generated_ts <= forecast.forecast_available_ts
 
 
-def assert_forecast_size_clock(
-    *, forecast: ForecastTarget, size_input: SizeVolInput
-) -> None:
+def assert_forecast_size_clock(*, forecast: ForecastTarget, size_input: SizeVolInput) -> None:
     """Forecast → sizing invariant.
 
     If a forecast exists, sizing should consume after forecast
@@ -69,4 +67,3 @@ __all__ = [
     "assert_sizing_order_clock",
     "assert_no_straddle",
 ]
-
