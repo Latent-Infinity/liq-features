@@ -14,3 +14,9 @@ def test_midrange_base_helper_contract_imports() -> None:
 
     assert callable(module_exports["roll_extreme_midrange"])
     assert callable(module_exports["roll_mean_midrange"])
+
+
+def test_regime_label_contract_imports() -> None:
+    module_exports = vars(import_module("liq.features.mean_reversion.regime"))
+
+    assert module_exports["RegimeLabel"] is not None
