@@ -27,6 +27,7 @@ dependencies = [
     "typer>=0.15",
     "rich>=13.9",
     "liq-ta>=0.1.1",
+    "liq-fractal>=0.1.0",
     "liq-core>=0.1.1",
     "liq-data>=0.1.2",
     "liq-store>=0.1.1",
@@ -65,6 +66,7 @@ Repository = "https://github.com/example/liq-features"
 [tool.uv]
 [tool.uv.sources]
 liq-ta = { path = "../liq-ta/crates/liq-ta-python", editable = true }
+liq-fractal = { path = "../liq-fractal", editable = true }
 liq-core = { path = "../liq-core", editable = true }
 liq-data = { path = "../liq-data", editable = true }
 liq-store = { path = "../liq-store", editable = true }
@@ -122,6 +124,6 @@ ignore = [
 known-first-party = ["liq"]
 
 [tool.ty.environment]
-extra-paths = ["./src", "../liq-core/src"]
+extra-paths = ["./src", "../liq-core/src", "../liq-fractal/src"]
 
 [tool.ty.rules]
