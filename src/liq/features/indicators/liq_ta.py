@@ -14,26 +14,29 @@ from __future__ import annotations
 import threading
 import weakref
 from collections import OrderedDict
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from liq.features.indicators.base import BaseIndicator
+from liq.features.numpy_utils import to_numpy_float64
+
 if TYPE_CHECKING:
-    import polars as pl
+    import polars as pl_types
     from numpy.typing import NDArray
 
+liq_ta: Any
+pl: Any
 try:
-    import liq_ta
-    import polars as pl
+    liq_ta = import_module("liq_ta")
+    pl = import_module("polars")
 
     HAS_LIQ_TA = True
 except ImportError:
     HAS_LIQ_TA = False
-    liq_ta = None  # type: ignore[assignment]
-    pl = None  # type: ignore[assignment]
-
-from liq.features.indicators.base import BaseIndicator
-from liq.features.numpy_utils import to_numpy_float64
+    liq_ta = None
+    pl = None
 
 # Legacy names mapped to liq-ta function names.
 _FUNCTION_ALIASES: dict[str, str] = {
@@ -144,7 +147,7 @@ _LIQ_TA_FINALIZERS: dict[int, weakref.finalize] = {}
 _LIQ_TA_CACHE_LOCK = threading.Lock()
 
 
-def _get_column_cache(df: pl.DataFrame) -> dict[str, NDArray[np.floating[Any]]]:
+def _get_column_cache(df: pl_types.DataFrame) -> dict[str, NDArray[np.floating[Any]]]:
     key = id(df)
     with _LIQ_TA_CACHE_LOCK:
         cached = _LIQ_TA_INPUT_CACHE.get(key)
@@ -163,7 +166,7 @@ def _purge_liq_ta_cache(key: int) -> None:
 
 
 def map_inputs(
-    df: pl.DataFrame,
+    df: pl_types.DataFrame,
     input_names: OrderedDict[str, Any],
     price_column: str = "close",
     indicator_name: str = "unknown",
@@ -286,10 +289,10 @@ def map_inputs(
 
 
 def format_outputs(
-    ts_series: pl.Series,
+    ts_series: pl_types.Series,
     result_arrays: Any,
     output_names: list[str],
-) -> pl.DataFrame:
+) -> pl_types.DataFrame:
     """Format output arrays into a Polars DataFrame."""
     if len(output_names) == 1:
         if isinstance(result_arrays, np.ndarray):
@@ -685,8 +688,8 @@ def _backend_args(
 def _compute_dynamic(
     entry: dict[str, Any],
     params: dict[str, Any],
-    df: pl.DataFrame,
-) -> pl.DataFrame:
+    df: pl_types.DataFrame,
+) -> pl_types.DataFrame:
     assert liq_ta is not None
 
     price_col = params.get("_price_column", "close")
@@ -775,7 +778,7 @@ def _create_dynamic_indicator_class(name: str) -> type[BaseIndicator]:
         default_params = defaults
         _indicator_info = entry
 
-        def _compute(self, df: pl.DataFrame) -> pl.DataFrame:
+        def _compute(self, df: pl_types.DataFrame) -> pl_types.DataFrame:
             return _compute_dynamic(self._indicator_info, self.params, df)
 
     class_name = entry["name"].replace("_", "")
