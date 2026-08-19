@@ -11,6 +11,8 @@ import joblib
 import numpy as np
 import polars as pl
 from numpy.typing import NDArray
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
@@ -23,7 +25,9 @@ IntArray = NDArray[np.int_]
 SVMKernel = Literal["linear", "poly", "rbf", "sigmoid"]
 SVMClassWeight = Literal["balanced"] | dict[int, float] | None
 
-_PERSISTENCE_FORMAT = "liq.features.regime.svm.v1"
+_PERSISTENCE_FORMAT_V1 = "liq.features.regime.svm.v1"
+_PERSISTENCE_FORMAT = "liq.features.regime.svm.v2"
+_SUPPORTED_PERSISTENCE_FORMATS = frozenset({_PERSISTENCE_FORMAT_V1, _PERSISTENCE_FORMAT})
 logger = logging.getLogger(__name__)
 
 
@@ -77,8 +81,22 @@ def _min_cluster_fraction(labels: pl.Series) -> float:
     return min(counts) / labels.len()
 
 
+def _calibration_splitter(labels: IntArray, *, random_state: int) -> StratifiedKFold:
+    _, counts = np.unique(labels, return_counts=True)
+    if counts.size < 2:
+        raise ValueError("labels must contain at least two observed regimes")
+    minimum_class_count = int(counts.min())
+    if minimum_class_count < 2:
+        raise ValueError("probability calibration requires at least 2 samples per observed regime")
+    return StratifiedKFold(
+        n_splits=min(5, minimum_class_count),
+        shuffle=True,
+        random_state=random_state,
+    )
+
+
 class SVMRegimeClassifier(RegimeClassifier, Persistable):
-    """Polars-native regime classifier backed by sklearn's ``SVC``."""
+    """Polars-native SVC with deterministic sigmoid probability calibration."""
 
     def __init__(
         self,
@@ -105,7 +123,7 @@ class SVMRegimeClassifier(RegimeClassifier, Persistable):
         self.bootstrap = bootstrap or SwAVPrototypeBootstrap()
         self.strict_cluster_sizes = strict_cluster_sizes
         self._scaler: StandardScaler | None = None
-        self._model: SVC | None = None
+        self._model: SVC | CalibratedClassifierCV | None = None
 
     @property
     def n_regimes(self) -> int:
@@ -136,15 +154,19 @@ class SVMRegimeClassifier(RegimeClassifier, Persistable):
                 logger.warning(message)
         labels = _to_label_array(label_series, features.height, self.n_regimes)
 
-        model = SVC(
-            kernel=self.kernel,
-            C=self.c,
-            gamma=self.gamma,
-            degree=self.degree,
-            probability=True,
-            class_weight=self.class_weight,
-            random_state=self.random_state,
-            decision_function_shape="ovr",
+        model = CalibratedClassifierCV(
+            estimator=SVC(
+                kernel=self.kernel,
+                C=self.c,
+                gamma=self.gamma,
+                degree=self.degree,
+                class_weight=self.class_weight,
+                random_state=self.random_state,
+                decision_function_shape="ovr",
+            ),
+            method="sigmoid",
+            cv=_calibration_splitter(labels, random_state=self.random_state),
+            ensemble=False,
         )
         model.fit(scaled_values, labels)
         self._scaler = scaler
@@ -154,7 +176,12 @@ class SVMRegimeClassifier(RegimeClassifier, Persistable):
     def predict(self, features: pl.DataFrame) -> pl.Series:
         """Predict integer cluster IDs in feature row order."""
         model, scaled_values = self._model_and_scaled_values(features)
-        predictions = model.predict(scaled_values).astype(np.int_, copy=False)
+        if isinstance(model, CalibratedClassifierCV):
+            base_model = cast(SVC, model.calibrated_classifiers_[0].estimator)
+            predictions = base_model.predict(scaled_values)
+        else:
+            predictions = model.predict(scaled_values)
+        predictions = predictions.astype(np.int_, copy=False)
         return pl.Series("cluster_id", predictions.tolist())
 
     def predict_proba(self, features: pl.DataFrame) -> pl.DataFrame:
@@ -216,7 +243,7 @@ class SVMRegimeClassifier(RegimeClassifier, Persistable):
         except Exception as error:
             raise ValueError("file is not a valid SVMRegimeClassifier state") from error
 
-        if not isinstance(state, dict) or state.get("format") != _PERSISTENCE_FORMAT:
+        if not isinstance(state, dict) or state.get("format") not in _SUPPORTED_PERSISTENCE_FORMATS:
             raise ValueError("unsupported SVMRegimeClassifier state format")
         params = state.get("params")
         scaler = state.get("scaler")
@@ -229,7 +256,9 @@ class SVMRegimeClassifier(RegimeClassifier, Persistable):
         loaded._model = model
         return loaded
 
-    def _model_and_scaled_values(self, features: pl.DataFrame) -> tuple[SVC, FloatArray]:
+    def _model_and_scaled_values(
+        self, features: pl.DataFrame
+    ) -> tuple[SVC | CalibratedClassifierCV, FloatArray]:
         if self._model is None or self._scaler is None:
             raise RuntimeError("classifier must be fit before prediction")
         values = _to_feature_array(features)

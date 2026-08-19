@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import joblib
+import numpy as np
 import polars as pl
 import pytest
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 
 from liq.features.regime import SVMRegimeClassifier, SVMVotingEnsemble, SwAVPrototypeBootstrap
 
@@ -92,12 +97,20 @@ class DegenerateBootstrap:
         return pl.Series("regime", [0] * (features.height - 1) + [1])
 
 
+class BalancedBinaryBootstrap:
+    def fit(self, features: pl.DataFrame, *, n_regimes: int, random_state: int) -> pl.Series:
+        if n_regimes != 2 or random_state < 0:
+            raise ValueError("invalid test bootstrap parameters")
+        midpoint = features.height // 2
+        return pl.Series("regime", [0] * midpoint + [1] * (features.height - midpoint))
+
+
 def test_svm_classifier_accepts_custom_bootstrap_for_unlabeled_fit() -> None:
     features = _features()
     classifier = SVMRegimeClassifier(
         random_state=11,
         n_regimes=2,
-        bootstrap=DegenerateBootstrap(),
+        bootstrap=BalancedBinaryBootstrap(),
     ).fit(features)
 
     assert classifier.predict(features).len() == features.height
@@ -124,6 +137,63 @@ def test_svm_classifier_predictions_are_deterministic_for_same_seed() -> None:
     assert first.predict_proba(features).rows() == second.predict_proba(features).rows()
 
 
+def test_svm_classifier_uses_supported_deterministic_calibration(tmp_path: Path) -> None:
+    path = tmp_path / "svm-regime.pkl"
+    SVMRegimeClassifier(random_state=19).fit(_features(), _labels()).save(path)
+
+    state: dict[str, Any] = joblib.load(path)
+    model = state["model"]
+
+    assert state["format"] == "liq.features.regime.svm.v2"
+    assert isinstance(model, CalibratedClassifierCV)
+    assert model.ensemble is False
+    assert model.method == "sigmoid"
+    assert isinstance(model.estimator, SVC)
+    assert isinstance(model.cv, StratifiedKFold)
+    assert model.cv.n_splits == 4
+    assert model.cv.shuffle is True
+    assert model.cv.random_state == 19
+
+
+def test_svm_classifier_requires_two_samples_per_observed_regime_for_calibration() -> None:
+    with pytest.raises(ValueError, match="probability calibration requires at least 2"):
+        SVMRegimeClassifier(
+            random_state=21,
+            n_regimes=2,
+            bootstrap=DegenerateBootstrap(),
+        ).fit(_features())
+
+
+def test_svm_classifier_requires_multiple_observed_regimes_for_calibration() -> None:
+    labels = pl.Series("regime", [0] * _features().height)
+
+    with pytest.raises(ValueError, match="at least two observed regimes"):
+        SVMRegimeClassifier(random_state=21).fit(_features(), labels)
+
+
+def test_svm_classifier_predict_preserves_base_svc_decisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    features = _features()
+    path = tmp_path / "svm-regime.pkl"
+    classifier = SVMRegimeClassifier(random_state=22).fit(features, _labels())
+    classifier.save(path)
+    state: dict[str, Any] = joblib.load(path)
+    model = cast(CalibratedClassifierCV, state["model"])
+    scaler = cast(StandardScaler, state["scaler"])
+    scaled_values = scaler.transform(features.to_numpy())
+    expected = model.calibrated_classifiers_[0].estimator.predict(scaled_values).tolist()
+
+    monkeypatch.setattr(
+        cast(CalibratedClassifierCV, classifier._model),
+        "predict",
+        lambda values: np.full(values.shape[0], 99, dtype=np.int_),
+    )
+
+    assert classifier.predict(features).to_list() == expected
+
+
 def test_svm_classifier_persists_and_loads_predictions(tmp_path: Path) -> None:
     features = _features()
     path = tmp_path / "svm-regime.pkl"
@@ -135,6 +205,42 @@ def test_svm_classifier_persists_and_loads_predictions(tmp_path: Path) -> None:
     assert loaded.n_regimes == classifier.n_regimes
     assert loaded.predict(features).to_list() == classifier.predict(features).to_list()
     assert loaded.predict_proba(features).rows() == classifier.predict_proba(features).rows()
+
+
+def test_svm_classifier_loads_legacy_v1_svc_artifact(tmp_path: Path) -> None:
+    features = _features()
+    path = tmp_path / "legacy-svm-regime.pkl"
+    scaler = StandardScaler()
+    scaled_values = scaler.fit_transform(features.to_numpy())
+    with pytest.warns(FutureWarning, match="probability"):
+        model = SVC(
+            probability=True,
+            random_state=23,
+            decision_function_shape="ovr",
+        ).fit(scaled_values, _labels().to_numpy())
+    joblib.dump(
+        {
+            "format": "liq.features.regime.svm.v1",
+            "params": {
+                "random_state": 23,
+                "n_regimes": 3,
+                "kernel": "rbf",
+                "c": 1.0,
+                "gamma": "scale",
+                "degree": 3,
+                "class_weight": None,
+                "strict_cluster_sizes": False,
+            },
+            "scaler": scaler,
+            "model": model,
+        },
+        path,
+    )
+
+    loaded = SVMRegimeClassifier.load(path)
+
+    assert loaded.predict(features).to_list() == model.predict(scaled_values).tolist()
+    assert loaded.predict_proba(features).shape == (features.height, 3)
 
 
 def test_svm_classifier_rejects_prediction_before_fit() -> None:
